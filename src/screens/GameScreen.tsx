@@ -131,7 +131,7 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
     if (game.status === 'jammed') track('level_jammed', { id: def.id });
   }, [game.status, def.id]);
 
-  const boardSize = Math.min(width - SPACE.l * 2, height - insets.top - insets.bottom - 250, 560);
+  const boardSize = Math.min(width - SPACE.l * 2, height - insets.top - insets.bottom - 250, width >= 700 ? 760 : 560);
   const hubValue = game.limit ? Math.max(0, game.limit - game.turns) : game.turns;
   const freeUndo = def.budget === 0;
 

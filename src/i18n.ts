@@ -92,7 +92,7 @@ const fr = {
       body: 'Une bague cadenassée ne tourne pas. Ouvrez un rayon qui contient une clé pour la libérer.',
     },
   } satisfies Record<Twist, { title: string; body: string }>,
-  combo: (n: number) => (n >= 3 ? `Triple ×${n}` : `Double ×${n}`),
+  combo: (n: number) => (n >= 4 ? `Méga ×${n}` : n === 3 ? `Triple ×3` : `Double ×2`),
   shareText: (date: string, turns: number, par: number, streak: number) =>
     `Rotor, combinaison du ${date}\nOuverte en ${turns} ${turns > 1 ? 'tours' : 'tour'} (par ${par})${streak > 1 ? `\nSérie : ${streak} jours` : ''}`,
   dateLong: (d: Date) => d.toLocaleDateString('fr-CA', { day: 'numeric', month: 'long' }),
@@ -180,7 +180,7 @@ const en: Strings = {
     counter: { title: 'Reverse gears', body: 'This driver ring turns its neighbour the opposite way.' },
     lock: { title: 'Padlocks', body: 'A padlocked ring can’t turn. Unlock a spoke holding a key to free it.' },
   },
-  combo: (n) => (n >= 3 ? `Triple ×${n}` : `Double ×${n}`),
+  combo: (n) => (n >= 4 ? `Mega ×${n}` : n === 3 ? `Triple ×3` : `Double ×2`),
   shareText: (date, turns, par, streak) =>
     `Rotor Daily Lock, ${date}\nOpened in ${turns} ${turns > 1 ? 'turns' : 'turn'} (par ${par})${streak > 1 ? `\n${streak}-day streak` : ''}`,
   dateLong: (d) => d.toLocaleDateString('en-CA', { month: 'long', day: 'numeric' }),

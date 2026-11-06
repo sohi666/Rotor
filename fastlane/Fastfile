@@ -1,0 +1,217 @@
+# frozen_string_literal: true
+
+# Rotor: Daily Lock - store metadata and App Review submission.
+#
+# Binaries are built and uploaded by EAS (eas build / eas submit). These lanes
+# only use the App Store Connect and Google Play APIs, so they run on Linux.
+#
+#   bundle exec fastlane ios metadata       # listing text, categories, age rating, screenshots
+#   bundle exec fastlane ios submit_review  # the above + attach build + submit for App Review
+#   bundle exec fastlane android metadata   # Play listing text/images (no .aab, no changelogs)
+#
+# Environment:
+#   ASC_KEY_ID, ASC_ISSUER_ID          App Store Connect team API key
+#   ASC_API_KEY_PATH or ASC_KEY_P8     path to the .p8, or its contents
+#   APP_VERSION                        marketing version (default: expo.version in app.json)
+#   BUILD_NUMBER                       build to submit (default: newest processed build)
+#   IOS_FIRST_RELEASE=true|false       override first-version detection (release notes)
+#   BUILD_PROCESSING_TIMEOUT_MINUTES   how long to wait for TestFlight processing (default 60)
+#   GOOGLE_SERVICE_ACCOUNT_KEY_PATH or GOOGLE_SERVICE_ACCOUNT_JSON   Play service account
+#   SUPPLY_VALIDATE_ONLY=true          android metadata: validate without committing
+
+require "json"
+require "fileutils"
+require "tmpdir"
+
+opt_out_usage
+default_platform(:ios)
+
+ROTOR_APP_IDENTIFIER = "com.behtoyi.rotor"
+# fastlane evaluates this file from ./fastlane but runs actions from the project
+# root, so resolve every path absolutely.
+ROTOR_ROOT = File.exist?(File.join(Dir.pwd, "fastlane", "Fastfile")) ? Dir.pwd : File.expand_path("..", Dir.pwd)
+ROTOR_FASTLANE = File.join(ROTOR_ROOT, "fastlane")
+ROTOR_METADATA = File.join(ROTOR_FASTLANE, "metadata")
+ROTOR_SCREENSHOTS = File.join(ROTOR_FASTLANE, "screenshots")
+ROTOR_RATING_CONFIG = File.join(ROTOR_FASTLANE, "app_rating_config.json")
+ROTOR_IOS_LOCALES = %w[fr-CA en-US].freeze
+# App Store version states meaning "this version was on the store at some point".
+ROTOR_LIVE_STATES = %w[
+  READY_FOR_SALE READY_FOR_DISTRIBUTION REPLACED_WITH_NEW_VERSION
+  REMOVED_FROM_SALE DEVELOPER_REMOVED_FROM_SALE
+].freeze
+
+def rotor_env(name)
+  value = ENV[name].to_s.strip
+  value.empty? ? nil : value
+end
+
+# Team API key from the environment; also sets the Spaceship token used below.
+def rotor_asc_api_key
+  key_id = rotor_env("ASC_KEY_ID") || UI.user_error!("ASC_KEY_ID is not set")
+  issuer_id = rotor_env("ASC_ISSUER_ID") || UI.user_error!("ASC_ISSUER_ID is not set")
+  options = { key_id: key_id, issuer_id: issuer_id, duration: 1200, in_house: false }
+  path = rotor_env("ASC_API_KEY_PATH")
+  if path && File.exist?(path)
+    app_store_connect_api_key(options.merge(key_filepath: path))
+  elsif (content = rotor_env("ASC_KEY_P8"))
+    app_store_connect_api_key(options.merge(key_content: content.gsub("\\n", "\n")))
+  else
+    UI.user_error!("Set ASC_API_KEY_PATH (path to the .p8 file) or ASC_KEY_P8 (its contents)")
+  end
+end
+
+def rotor_app
+  Spaceship::ConnectAPI::App.find(ROTOR_APP_IDENTIFIER) ||
+    UI.user_error!("#{ROTOR_APP_IDENTIFIER} not found in App Store Connect: create the app record first (docs/RELEASE.md)")
+end
+
+def rotor_app_version
+  rotor_env("APP_VERSION") ||
+    JSON.parse(File.read(File.join(ROTOR_ROOT, "app.json"))).dig("expo", "version") ||
+    UI.user_error!("APP_VERSION not set and app.json has no expo.version")
+end
+
+# Apple does not accept "What's New" or phased release on an app's first version.
+def rotor_first_release?(app)
+  forced = rotor_env("IOS_FIRST_RELEASE")
+  return forced == "true" unless forced.nil?
+
+  versions = app.get_app_store_versions(filter: { platform: "IOS" })
+  live = versions.any? do |v|
+    state = (v.respond_to?(:app_version_state) && v.app_version_state) || v.app_store_state
+    ROTOR_LIVE_STATES.include?(state.to_s)
+  end
+  UI.message(live ? "An earlier version has been on the App Store." : "No version has been on the App Store yet: treating this as the first release.")
+  !live
+rescue StandardError => e
+  UI.important("Could not check earlier App Store versions (#{e.message}); leaving release notes out to be safe.")
+  true
+end
+
+def rotor_metadata_path(first_release)
+  return ROTOR_METADATA unless first_release
+
+  tmp = Dir.mktmpdir("rotor-metadata")
+  FileUtils.cp_r(File.join(ROTOR_METADATA, "."), tmp)
+  Dir.glob(File.join(tmp, "*", "release_notes.txt")).each { |f| FileUtils.rm_f(f) }
+  UI.message("First version: release_notes.txt left out (App Store shows no 'What's New' for 1.0).")
+  tmp
+end
+
+def rotor_screenshots?
+  ROTOR_IOS_LOCALES.any? { |l| Dir.glob(File.join(ROTOR_SCREENSHOTS, l, "*.{png,jpg,jpeg,PNG,JPG,JPEG}")).any? }
+end
+
+def rotor_deliver_options(api_key, app_version, metadata_path)
+  options = {
+    api_key: api_key,
+    app_identifier: ROTOR_APP_IDENTIFIER,
+    platform: "ios",
+    app_version: app_version,
+    skip_binary_upload: true,
+    skip_metadata: false,
+    metadata_path: metadata_path,
+    app_rating_config_path: ROTOR_RATING_CONFIG,
+    force: true, # no HTML preview / confirmation prompt
+    precheck_include_in_app_purchases: false # precheck cannot read IAPs with an API key
+  }
+  if rotor_screenshots?
+    options.merge(skip_screenshots: false, screenshots_path: ROTOR_SCREENSHOTS, overwrite_screenshots: true)
+  else
+    UI.important("No screenshots in fastlane/screenshots/<locale>: keeping the ones already in App Store Connect.")
+    options.merge(skip_screenshots: true)
+  end
+end
+
+# Wait until App Store Connect has processed the uploaded build.
+def rotor_wait_for_build(app, version, build_number)
+  minutes = (rotor_env("BUILD_PROCESSING_TIMEOUT_MINUTES") || "60").to_i
+  deadline = Time.now + (minutes * 60)
+  loop do
+    build = Spaceship::ConnectAPI::Build.all(
+      app_id: app.id, version: version, build_number: build_number,
+      platform: Spaceship::ConnectAPI::Platform::IOS
+    ).first
+    state = build&.processing_state
+    case state
+    when "VALID"
+      UI.success("Build #{version} (#{build_number}) is processed.")
+      return build
+    when "FAILED", "INVALID"
+      UI.user_error!("ROTOR_BUILD_INVALID: build #{version} (#{build_number}) processing state is #{state}")
+    end
+    if Time.now > deadline
+      code = build ? "ROTOR_BUILD_TIMEOUT" : "ROTOR_BUILD_NOT_FOUND"
+      UI.user_error!("#{code}: build #{version} (#{build_number}) still #{state || 'not visible'} after #{minutes} min")
+    end
+    UI.message("Waiting for build #{version} (#{build_number}): #{state || 'not visible yet'}...")
+    sleep(30)
+  end
+end
+
+platform :ios do
+  desc "Upload App Store metadata, categories, age rating and screenshots (no binary, no submission)"
+  lane :metadata do
+    api_key = rotor_asc_api_key
+    first = rotor_first_release?(rotor_app)
+    deliver(rotor_deliver_options(api_key, rotor_app_version, rotor_metadata_path(first)).merge(
+      submit_for_review: false,
+      run_precheck_before_submit: false
+    ))
+  end
+
+  desc "Upload metadata + age rating, attach the processed build and submit the version for App Review"
+  lane :submit_review do
+    api_key = rotor_asc_api_key
+    app = rotor_app
+    version = rotor_app_version
+    build_number = rotor_env("BUILD_NUMBER")
+    rotor_wait_for_build(app, version, build_number) if build_number
+    first = rotor_first_release?(app)
+
+    deliver(rotor_deliver_options(api_key, version, rotor_metadata_path(first)).merge(
+      build_number: build_number || "latest",
+      submit_for_review: true,
+      automatic_release: false, # approval -> "Pending Developer Release"; you press Release
+      phased_release: !first,   # 7-day phased rollout for updates (not applicable to 1.0)
+      reset_ratings: false,
+      run_precheck_before_submit: true,
+      precheck_default_rule_level: :warn,
+      submission_information: {
+        export_compliance_uses_encryption: false, # HTTPS only (exempt)
+        content_rights_contains_third_party_content: false,
+        # The app shows AdMob ads and requests ATT. Apple removed the IDFA question
+        # from submissions (fastlane >= 2.221 ignores this key); IDFA use is
+        # declared in the App Privacy questionnaire instead (docs/store-forms.md).
+        add_id_info_uses_idfa: true
+      }
+    ))
+  end
+end
+
+platform :android do
+  desc "Upload the Google Play store listing (text, and images if present); never uploads an .aab"
+  lane :metadata do
+    options = {
+      package_name: ROTOR_APP_IDENTIFIER,
+      metadata_path: File.join(ROTOR_METADATA, "android"),
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_changelogs: true, # release notes need a release; EAS Submit creates those
+      skip_upload_metadata: false,
+      validate_only: rotor_env("SUPPLY_VALIDATE_ONLY") == "true"
+    }
+    if (path = rotor_env("GOOGLE_SERVICE_ACCOUNT_KEY_PATH"))
+      options[:json_key] = path
+    elsif (data = rotor_env("GOOGLE_SERVICE_ACCOUNT_JSON"))
+      options[:json_key_data] = data
+    else
+      UI.user_error!("Set GOOGLE_SERVICE_ACCOUNT_KEY_PATH or GOOGLE_SERVICE_ACCOUNT_JSON")
+    end
+    images = Dir.glob(File.join(ROTOR_METADATA, "android", "*", "images", "**", "*.{png,jpg,jpeg}")).any?
+    options[:skip_upload_images] = !images
+    options[:skip_upload_screenshots] = !images
+    supply(options)
+  end
+end

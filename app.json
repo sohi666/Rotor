@@ -107,7 +107,18 @@
         "terms": "https://rotor.behtoyi.com/terms",
         "contact": "mailto:rotor@behtoyi.com",
         "share": ""
+      },
+      "eas": {
+        "projectId": "a88fa564-ba65-4d4d-ab71-fcf1cbfb3784"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a88fa564-ba65-4d4d-ab71-fcf1cbfb3784",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
     }
   }
 }

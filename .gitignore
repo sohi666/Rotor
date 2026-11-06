@@ -40,3 +40,22 @@ yarn-error.*
 /ios
 /android
 public/canvaskit.wasm
+
+# Release pipeline: never commit store credentials or build outputs
+rotor-secrets/
+AuthKey_*.p8
+google-service-account*.json
+*service-account*.json
+play-store-credentials*.json
+*.aab
+*.apk
+*.ipa
+eas-build*.json
+.store-status/
+
+# fastlane outputs
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/README.md
+fastlane/test_output/
+fastlane/screenshots/screenshots.html

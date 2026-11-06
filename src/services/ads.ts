@@ -49,7 +49,7 @@ export async function initAds(): Promise<void> {
     if (!info.canRequestAds) return;
     if (Platform.OS === 'ios') await requestTrackingPermissionsAsync().catch(() => undefined);
     await mobileAds().setRequestConfiguration({
-      maxAdContentRating: MaxAdContentRating.PG,
+      maxAdContentRating: MaxAdContentRating.G, // keeps ads suitable for the App Store 4+ rating
       tagForChildDirectedTreatment: false,
       tagForUnderAgeOfConsent: false,
     });

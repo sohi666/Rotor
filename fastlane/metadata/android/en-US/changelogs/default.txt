@@ -1,0 +1,1 @@
+First release of Rotor: 200 solver-checked levels, a shareable Daily Lock, and symbols so you never have to rely on color alone.

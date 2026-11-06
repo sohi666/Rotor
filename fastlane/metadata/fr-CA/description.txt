@@ -1,0 +1,24 @@
+Rotor, c'est un casse-tête tactile à cadrans. Fais tourner des anneaux concentriques, cran par cran, jusqu'à ce que des pions de la même couleur s'alignent sur un même rayon. Clic! Le rayon se déverrouille et les pions disparaissent. Vide tout le cadran pour ouvrir le cadenas.
+
+DES NIVEAUX HONNÊTES
+Chaque niveau est vérifié par un solveur avant d'arriver dans le jeu, et chacun affiche sa normale, soit le plus petit nombre de tours possible. Tu sais toujours ce qu'il y a à battre. Aucun niveau truqué.
+
+À TON RYTHME
+Pas de vies à recharger, pas de minuterie d'énergie. Joue une minute ou une heure, même sans connexion.
+
+LA COMBINAISON DU JOUR
+Un nouveau cadenas chaque jour, le même pour tout le monde. Une fois que tu l'as ouvert, partage ton résultat sans rien divulgâcher.
+
+200 NIVEAUX, DES MÉCANIQUES QUI S'AJOUTENT
+Les nouveautés arrivent une à la fois, chacune avec une courte présentation :
+• Boulons : ils bloquent le rayon où ils se trouvent, alors fais-les tourner hors du chemin
+• Anneaux à engrenage : tourne un anneau, un autre suit
+• Engrenages inversés : l'anneau entraîné tourne dans l'autre sens
+• Pions jokers : ils s'agencent avec n'importe quelle couleur
+• Cadenas et clés : certains anneaux restent bloqués tant que tu n'as pas libéré une clé
+
+POUR TOUT LE MONDE
+Chaque couleur a aussi son symbole : pas besoin de distinguer les couleurs pour jouer, pratique pour les personnes daltoniennes.
+
+LA PUB, C'EST TOI QUI DÉCIDES
+Les vidéos récompensées sont toujours facultatives. À partir du niveau 35, une pub peut s'afficher de temps en temps à la fin d'un niveau; un achat unique retire ces pubs de fin de niveau.

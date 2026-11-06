@@ -1,0 +1,24 @@
+Rotor is a tactile dial puzzle. Spin concentric rings, notch by notch, until pins of the same color line up on one spoke. Click! The spoke unlocks and the pins pop. Clear the whole dial to open the lock.
+
+HONEST LEVELS
+Every level is checked by a solver before it ships, and each one shows its par: the fewest turns it can be solved in. You always know what there is to beat, and no level is rigged.
+
+PLAY AT YOUR OWN PACE
+No lives to refill and no energy timers. Play for a minute or an hour, even offline.
+
+THE DAILY LOCK
+One new lock every day, the same for everyone. Once you've cracked it, share your result without spoiling the solution.
+
+200 LEVELS, NEW MECHANICS ALONG THE WAY
+New ideas arrive one at a time, each with a short intro:
+• Bolts: they block whatever spoke they sit on, so turn them out of the way
+• Gear-linked rings: turn one ring and another follows
+• Counter-rotating gears: the linked ring turns the other way
+• Wild pins: they match any color
+• Locks and keys: some rings stay locked until you clear a key
+
+MADE FOR EVERYONE
+Every color also has its own symbol, so you never have to tell colors apart to play.
+
+ADS ON YOUR TERMS
+Rewarded videos are always optional. From level 35, an occasional ad may appear at the end of a level; a one-time purchase removes those end-of-level ads.
