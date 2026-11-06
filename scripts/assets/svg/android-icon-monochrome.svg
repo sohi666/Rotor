@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs></defs>
+<g transform="translate(512 512) scale(0.6)"><circle r="466" fill="none" stroke="#FFFFFF" stroke-width="68"/>
+<circle r="424" fill="#FFFFFF" fill-opacity="0.16"/>
+<g transform="rotate(30)"><rect x="-14" y="-360" width="28" height="308" rx="14" fill="#FFFFFF"/></g>
+<circle cx="70" cy="-121.24" r="49.6" fill="#FFFFFF"/>
+<circle cx="140" cy="0" r="32.3" fill="#FFFFFF" fill-opacity="0.5"/>
+<circle cx="-70" cy="121.24" r="32.3" fill="#FFFFFF" fill-opacity="0.5"/>
+<circle cx="125" cy="-216.51" r="49.6" fill="#FFFFFF"/>
+<circle cx="125" cy="216.51" r="32.3" fill="#FFFFFF" fill-opacity="0.5"/>
+<circle cx="-250" cy="0" r="32.3" fill="#FFFFFF" fill-opacity="0.5"/>
+<circle cx="-125" cy="-216.51" r="32.3" fill="#FFFFFF" fill-opacity="0.5"/>
+<circle cx="180" cy="-311.77" r="49.6" fill="#FFFFFF"/>
+<circle cx="360" cy="0" r="32.3" fill="#FFFFFF" fill-opacity="0.5"/>
+<circle cx="180" cy="311.77" r="32.3" fill="#FFFFFF" fill-opacity="0.5"/>
+<circle cx="-180" cy="311.77" r="32.3" fill="#FFFFFF" fill-opacity="0.5"/>
+<mask id="m-hub"><rect x="-600" y="-600" width="1200" height="1200" fill="#fff"/><circle r="20" fill="#000"/></mask>
+<circle r="62" fill="#FFFFFF" mask="url(#m-hub)"/></g>
+</svg>

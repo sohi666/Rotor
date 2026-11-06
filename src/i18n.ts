@@ -1,0 +1,207 @@
+import { getLocales } from 'expo-localization';
+import type { Twist } from './engine/types';
+
+export type Lang = 'fr' | 'en';
+
+const fr = {
+  appName: 'Rotor',
+  tagline: 'Combinaison du jour',
+  play: 'Jouer',
+  levelN: (n: number) => `Niveau ${n}`,
+  vaultN: (n: number) => `Coffre ${n}`,
+  levels: 'Niveaux',
+  shop: 'Boutique',
+  settings: 'Réglages',
+  back: 'Retour',
+  daily: 'Combinaison du jour',
+  dailyTodo: 'Une nouvelle serrure vous attend.',
+  dailyOpen: 'Ouvrir la serrure du jour',
+  dailyDone: (turns: number, par: number) => `Ouverte en ${turns} ${turns > 1 ? 'tours' : 'tour'} (par ${par}).`,
+  dailyNext: (h: number, m: number) => `Prochaine serrure dans ${h} h ${String(m).padStart(2, '0')}`,
+  streak: (n: number) => `Série de ${n} ${n > 1 ? 'jours' : 'jour'}`,
+  noStreak: 'Commencez une série aujourd’hui',
+  turns: 'Tours',
+  turnsLeft: 'restants',
+  turnsUsed: 'joués',
+  par: (n: number) => `Par ${n}`,
+  noLimit: 'Sans limite',
+  undo: 'Annuler',
+  hint: 'Indice',
+  restart: 'Recommencer',
+  next: 'Niveau suivant',
+  replay: 'Rejouer',
+  home: 'Accueil',
+  perfect: 'Parfait',
+  cleared: 'Serrure ouverte',
+  clearedIn: (turns: number, par: number) =>
+    turns <= par ? `En ${turns} ${turns > 1 ? 'tours' : 'tour'}, égal au par.` : `En ${turns} tours. Le par est de ${par}.`,
+  coinsEarned: (n: number) => `+${n} pièces`,
+  doubleCoins: 'Doubler les pièces',
+  watchAd: 'Voir une pub',
+  outOfTurns: 'Plus de tours',
+  outOfTurnsBody: 'La serrure n’est pas encore ouverte. Ajoutez 3 tours ou recommencez.',
+  plusThree: '+3 tours',
+  forCoins: (n: number) => `${n} pièces`,
+  jammed: 'Coincé',
+  jammedBody: 'Plus aucune solution depuis cette position. Annulez un tour ou recommencez.',
+  share: 'Partager',
+  copied: 'Copié dans le presse-papiers',
+  hintNone: 'Recommencez pour obtenir un indice.',
+  hintShow: (n: number) => `Tournez cette bague de ${n} ${n > 1 ? 'crans' : 'cran'}.`,
+  notEnough: 'Pas assez de pièces',
+  sound: 'Sons',
+  haptics: 'Vibrations',
+  symbols: 'Symboles sur les pions',
+  symbolsHint: 'Ajoute une forme à chaque couleur.',
+  language: 'Langue',
+  langAuto: 'Automatique',
+  removeAds: 'Retirer les pubs',
+  removeAdsBody: 'Supprime les pubs de fin de niveau. Les vidéos facultatives restent disponibles pour les bonus.',
+  adsRemoved: 'Pubs retirées',
+  restore: 'Restaurer les achats',
+  privacy: 'Politique de confidentialité',
+  terms: 'Conditions d’utilisation',
+  contact: 'Nous écrire',
+  coins: 'Pièces',
+  coinPack: (n: number) => `${n} pièces`,
+  buy: 'Acheter',
+  unavailable: 'Indisponible',
+  purchaseThanks: 'Merci! Achat confirmé.',
+  purchaseFailed: 'L’achat n’a pas abouti. Aucun montant n’a été débité.',
+  fairLock: 'Chaque niveau est vérifié par un solveur : le par est toujours atteignable.',
+  stars: (n: number) => `${n} sur 3`,
+  locked: 'Verrouillé',
+  ok: 'Compris',
+  intro: {
+    basics: {
+      title: 'Tournez, alignez, ouvrez',
+      body: 'Glissez une bague pour la tourner. Quand toutes les bagues montrent la même couleur sur un rayon, il se déverrouille.',
+    },
+    bolt: { title: 'Boulons', body: 'Un boulon ne part jamais et bloque son rayon. Tournez-le à l’écart.' },
+    link: {
+      title: 'Engrenage',
+      body: 'Une bague motrice entraîne sa voisine dans le même sens. La voisine, elle, tourne seule.',
+    },
+    wild: { title: 'Joker', body: 'Le joker s’assortit à n’importe quelle couleur.' },
+    counter: {
+      title: 'Engrenage inversé',
+      body: 'Cette bague motrice fait tourner sa voisine dans l’autre sens.',
+    },
+    lock: {
+      title: 'Cadenas',
+      body: 'Une bague cadenassée ne tourne pas. Ouvrez un rayon qui contient une clé pour la libérer.',
+    },
+  } satisfies Record<Twist, { title: string; body: string }>,
+  combo: (n: number) => (n >= 3 ? `Triple ×${n}` : `Double ×${n}`),
+  shareText: (date: string, turns: number, par: number, streak: number) =>
+    `Rotor, combinaison du ${date}\nOuverte en ${turns} ${turns > 1 ? 'tours' : 'tour'} (par ${par})${streak > 1 ? `\nSérie : ${streak} jours` : ''}`,
+  dateLong: (d: Date) => d.toLocaleDateString('fr-CA', { day: 'numeric', month: 'long' }),
+};
+
+export type Strings = typeof fr;
+
+const en: Strings = {
+  appName: 'Rotor',
+  tagline: 'Daily Lock',
+  play: 'Play',
+  levelN: (n) => `Level ${n}`,
+  vaultN: (n) => `Vault ${n}`,
+  levels: 'Levels',
+  shop: 'Shop',
+  settings: 'Settings',
+  back: 'Back',
+  daily: 'Daily Lock',
+  dailyTodo: 'A new lock is waiting.',
+  dailyOpen: 'Open today’s lock',
+  dailyDone: (turns, par) => `Opened in ${turns} ${turns > 1 ? 'turns' : 'turn'} (par ${par}).`,
+  dailyNext: (h, m) => `Next lock in ${h}h ${String(m).padStart(2, '0')}m`,
+  streak: (n) => `${n}-day streak`,
+  noStreak: 'Start a streak today',
+  turns: 'Turns',
+  turnsLeft: 'left',
+  turnsUsed: 'used',
+  par: (n) => `Par ${n}`,
+  noLimit: 'No limit',
+  undo: 'Undo',
+  hint: 'Hint',
+  restart: 'Restart',
+  next: 'Next level',
+  replay: 'Replay',
+  home: 'Home',
+  perfect: 'Perfect',
+  cleared: 'Lock opened',
+  clearedIn: (turns, par) =>
+    turns <= par ? `In ${turns} ${turns > 1 ? 'turns' : 'turn'}, right on par.` : `In ${turns} turns. Par is ${par}.`,
+  coinsEarned: (n) => `+${n} coins`,
+  doubleCoins: 'Double the coins',
+  watchAd: 'Watch an ad',
+  outOfTurns: 'Out of turns',
+  outOfTurnsBody: 'The lock isn’t open yet. Add 3 turns or start over.',
+  plusThree: '+3 turns',
+  forCoins: (n) => `${n} coins`,
+  jammed: 'Jammed',
+  jammedBody: 'There’s no solution from here. Undo a turn or restart.',
+  share: 'Share',
+  copied: 'Copied to clipboard',
+  hintNone: 'Restart to get a hint.',
+  hintShow: (n) => `Turn this ring ${n} ${n > 1 ? 'notches' : 'notch'}.`,
+  notEnough: 'Not enough coins',
+  sound: 'Sound',
+  haptics: 'Haptics',
+  symbols: 'Symbols on pins',
+  symbolsHint: 'Adds a shape to every colour.',
+  language: 'Language',
+  langAuto: 'Automatic',
+  removeAds: 'Remove ads',
+  removeAdsBody: 'Removes end-of-level ads. Optional videos stay available for bonuses.',
+  adsRemoved: 'Ads removed',
+  restore: 'Restore purchases',
+  privacy: 'Privacy policy',
+  terms: 'Terms of use',
+  contact: 'Contact us',
+  coins: 'Coins',
+  coinPack: (n) => `${n} coins`,
+  buy: 'Buy',
+  unavailable: 'Unavailable',
+  purchaseThanks: 'Thanks! Purchase confirmed.',
+  purchaseFailed: 'The purchase didn’t go through. You weren’t charged.',
+  fairLock: 'Every level is checked by a solver, so par is always reachable.',
+  stars: (n) => `${n} of 3`,
+  locked: 'Locked',
+  ok: 'Got it',
+  intro: {
+    basics: {
+      title: 'Turn, align, unlock',
+      body: 'Drag a ring to turn it. When every ring shows the same colour on a spoke, that spoke unlocks.',
+    },
+    bolt: { title: 'Bolts', body: 'A bolt never clears and blocks its spoke. Turn it out of the way.' },
+    link: { title: 'Gears', body: 'A driver ring turns its neighbour the same way. The neighbour can still turn on its own.' },
+    wild: { title: 'Wild pins', body: 'A wild pin matches any colour.' },
+    counter: { title: 'Reverse gears', body: 'This driver ring turns its neighbour the opposite way.' },
+    lock: { title: 'Padlocks', body: 'A padlocked ring can’t turn. Unlock a spoke holding a key to free it.' },
+  },
+  combo: (n) => (n >= 3 ? `Triple ×${n}` : `Double ×${n}`),
+  shareText: (date, turns, par, streak) =>
+    `Rotor Daily Lock, ${date}\nOpened in ${turns} ${turns > 1 ? 'turns' : 'turn'} (par ${par})${streak > 1 ? `\n${streak}-day streak` : ''}`,
+  dateLong: (d) => d.toLocaleDateString('en-CA', { month: 'long', day: 'numeric' }),
+};
+
+const TABLE: Record<Lang, Strings> = { fr, en };
+
+/** French unless the device prefers English (Québec: French first). */
+export function deviceLang(): Lang {
+  try {
+    const locales = getLocales();
+    for (const l of locales) {
+      if (l.languageCode === 'fr') return 'fr';
+      if (l.languageCode === 'en') return 'en';
+    }
+  } catch {
+    // fall through
+  }
+  return 'fr';
+}
+
+export function strings(lang: Lang): Strings {
+  return TABLE[lang];
+}

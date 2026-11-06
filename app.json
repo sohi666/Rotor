@@ -1,25 +1,113 @@
 {
   "expo": {
-    "name": "rotor",
+    "name": "Rotor",
     "slug": "rotor",
+    "scheme": "rotor",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0F5257",
+    "primaryColor": "#C9973A",
+    "description": "Rotor: Daily Lock. Tournez les bagues, alignez les couleurs, ouvrez la serrure. Spin the rings, line up the colours, open the lock.",
+    "locales": {
+      "fr": "./locales/fr.json",
+      "en": "./locales/en.json"
+    },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.behtoyi.rotor",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleAllowMixedLocalizations": true,
+        "CFBundleDevelopmentRegion": "fr_CA"
+      }
     },
     "android": {
+      "package": "com.behtoyi.rotor",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0F5257",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      "expo-localization",
+      "expo-sqlite",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#0F5257"
+        }
+      ],
+      "expo-font",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511",
+          "delayAppMeasurementInit": true,
+          "userTrackingUsageDescription": "Rotor utilise cet identifiant pour afficher des publicités plus pertinentes. Les vidéos restent facultatives."
+        }
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "Rotor utilise cet identifiant pour afficher des publicités plus pertinentes. Les vidéos restent facultatives."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "ads": {
+        "useTestIds": true,
+        "ios": {
+          "rewarded": "",
+          "interstitial": ""
+        },
+        "android": {
+          "rewarded": "",
+          "interstitial": ""
+        }
+      },
+      "revenuecat": {
+        "ios": "",
+        "android": ""
+      },
+      "links": {
+        "privacy": "https://rotor.behtoyi.com/privacy",
+        "terms": "https://rotor.behtoyi.com/terms",
+        "contact": "mailto:rotor@behtoyi.com",
+        "share": ""
+      }
     }
   }
 }
