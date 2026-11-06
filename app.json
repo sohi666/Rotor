@@ -2,6 +2,7 @@
   "expo": {
     "name": "Rotor",
     "slug": "rotor",
+    "owner": "behtoyi",
     "scheme": "rotor",
     "version": "1.0.0",
     "orientation": "portrait",

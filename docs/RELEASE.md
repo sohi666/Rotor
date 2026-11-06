@@ -39,7 +39,10 @@ Each step says which **repository secret** or **variable** it produces. Add them
 6. Create a CI token. **expo.dev → (account) → Settings → Access tokens → Create token**. A *robot* user with Developer role is preferable to a personal token. → secret **`EXPO_TOKEN`**.
 7. Build numbers are kept remotely (`cli.appVersionSource: remote`) and bumped on every production build. Only if a store already has builds should you run `npx eas-cli@latest build:version:set -p ios` (and `-p android`) and enter the last number used.
 
-### D. Apple (Organization account)
+### D. Apple (individual account `sohrab behtoyi`, team 3EJ7FPDYM4, for now)
+
+The corporate (Organization) enrollment is pending. Rotor ships from the individual account; once the corporate account is approved and v1.0 is live, move it with **App Store Connect → Apps → Rotor → App Information → Transfer App**, then re-run `eas credentials -p ios` under the new team and update `APPLE_TEAM_ID` and the `ASC_*` secrets.
+
 
 8. **Bundle ID.** Go to **developer.apple.com → Account → Certificates, Identifiers & Profiles → Identifiers → +** → App IDs → App. Choose Explicit `com.behtoyi.rotor` and enable *In-App Purchase*. (Step 11 also creates the ID if it is missing.)
 9. **App record.** Go to **App Store Connect → Apps → + → New App**. Platform iOS, Name `Rotor: Daily Lock`, **Primary Language French (Canada)**, Bundle ID `com.behtoyi.rotor`, SKU `ROTOR-001`, User Access Full.
@@ -52,7 +55,7 @@ Each step says which **repository secret** or **variable** it produces. Add them
 11. **Signing on EAS (once, on any computer with Node).** Run `npx eas-cli@latest login`, then:
     - `npx eas-cli@latest credentials -p ios` → *production* → set up build credentials (log in with your Apple ID). This creates the distribution certificate and App Store provisioning profile, which CI then reuses. Non-interactive CI cannot create a distribution certificate.
     - `npx eas-cli@latest credentials -p android` → *production* → generate a new keystore (EAS stores it; back it up from the same menu).
-12. Variable **`APPLE_TEAM_ID`** defaults to `3EJ7FPDYM4` (Consultation Behtoyi Inc.) in `release.yml`; set the repo variable only to override it. With it, CI exports the `EXPO_ASC_*` env vars so `eas build` can repair an expired or invalid provisioning profile by itself. If that repair fails with a permissions error, the key needs the **Admin** role (the key above already uses Admin).
+12. Variable **`APPLE_TEAM_ID`** defaults to `3EJ7FPDYM4` (individual account) in `release.yml`; set the repo variable only to override it. With it, CI exports the `EXPO_ASC_*` env vars so `eas build` can repair an expired or invalid provisioning profile by itself. If that repair fails with a permissions error, the key needs the **Admin** role (the key above already uses Admin).
 13. **Business.** Go to **App Store Connect → Business**. The Paid Apps Agreement must stay active (it is), with banking and tax forms complete. When Apple publishes a new agreement, the Account Holder must accept it before uploads work again (ACTION NEEDED "Apple agreement").
 14. Before the **first** review submission (see section 2), in App Store Connect:
     - **App Privacy**: fill and **Publish** it (draft answers in `docs/store-forms.md`).
