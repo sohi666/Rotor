@@ -52,7 +52,7 @@ env:
   NODE_VERSION: '22'
   NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
   RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  PLAY_CONSOLE_URL: ${{ vars.PLAY_CONSOLE_APP_URL || 'https://play.google.com/console/developers' }}
+  PLAY_CONSOLE_URL: ${{ vars.PLAY_CONSOLE_APP_URL || secrets.PLAY_CONSOLE_APP_URL || 'https://play.google.com/console/developers' }}
   LANG: en_US.UTF-8
   LC_ALL: en_US.UTF-8
 

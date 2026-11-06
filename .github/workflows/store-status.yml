@@ -70,7 +70,7 @@ jobs:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           ANDROID_PACKAGE: com.behtoyi.rotor
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          PLAY_CONSOLE_URL: ${{ vars.PLAY_CONSOLE_APP_URL }}
+          PLAY_CONSOLE_URL: ${{ vars.PLAY_CONSOLE_APP_URL || secrets.PLAY_CONSOLE_APP_URL }}
           SKIP_GOOGLE: ${{ steps.release.outputs.running }}
         run: node scripts/store-status.mjs --state .store-status/state.json
 
