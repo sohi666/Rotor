@@ -130,8 +130,11 @@ A tag push uses these variables (defaults in brackets): `RELEASE_PLATFORM` [all]
 - `android_release_status` (completed = send to review / roll out; draft = upload only)
 - `submit_for_review` (iOS)
 - `ios_review_only`: no build; re-submits the newest processed build. Use it after a rejection or after fixing App Privacy or screenshots.
+- `ios_build_id` (optional): reuse a finished EAS iOS build (the ID at the end of its expo.dev build page) instead of building again. Use it when the build passed but the upload step failed.
 
 Build numbers increase by themselves (remote, `autoIncrement`). Every production build uses one EAS build credit, failed ones included.
+
+The Android job runs on GitHub's small private-repo runner (2 cores, about 7 GB RAM). It adds 10 GB of swap and limits Gradle to 2 workers with a 4 GB heap; without that the runner ran out of memory and disconnected. A `[runner] … mem … swap …` line every 2 minutes in the log shows memory use. TestFlight uploads carry no "What to test" note: EAS accepts that only on its Enterprise plan, so type it in App Store Connect → TestFlight if testers need one.
 
 ### First release (recommended order)
 1. Do section 1 up to step 19.
