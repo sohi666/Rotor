@@ -1,17 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  applyTurn,
-  cellAt,
-  colorOf,
-  fromDef,
-  isWon,
-  mightBeSolvable,
-  solve,
-  turnGroup,
-  type GameState,
-  type LevelDef,
-  WILD,
-} from '../engine';
+import { applyTurn, cellAt, colorOf, fromDef, isWon, mightBeSolvable, solve, turnGroup, type GameState, type LevelDef, WILD } from '../engine';
 import { mod } from './geometry';
 
 export type Status = 'playing' | 'won' | 'out' | 'jammed';
@@ -85,9 +73,12 @@ export function useGame(def: LevelDef): Game {
     setHint(null);
   }, [initial]);
 
-  useEffect(() => () => {
-    if (jamTimer.current) clearTimeout(jamTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (jamTimer.current) clearTimeout(jamTimer.current);
+    },
+    [],
+  );
 
   const limit = def.budget ? def.budget + bonus : 0;
 
@@ -171,13 +162,10 @@ export function useGame(def: LevelDef): Game {
     setHint(null);
   }, [initial]);
 
-  const addTurns = useCallback(
-    (n: number) => {
-      setBonus((b) => b + n);
-      setStatus((s) => (s === 'out' ? 'playing' : s));
-    },
-    [],
-  );
+  const addTurns = useCallback((n: number) => {
+    setBonus((b) => b + n);
+    setStatus((s) => (s === 'out' ? 'playing' : s));
+  }, []);
 
   const findHint = useCallback((): Hint | null => {
     const S = snap.state.S;

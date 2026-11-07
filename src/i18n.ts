@@ -125,6 +125,31 @@ const fr = {
   rewardKeys: (n: number) => `${n} ${n > 1 ? 'clés d’or' : 'clé d’or'}`,
   newSkin: (name: string) => `Nouveau style : ${name}`,
   newSkins: 'Nouveaux styles débloqués',
+  // Bonus rounds
+  bonus: 'Bonus',
+  skip: 'Passer',
+  continue: 'Continuer',
+  safeTitle: 'Casse-coffre',
+  safeIntroTitle: 'Ouvrez le coffre au toucher',
+  safeIntroBody:
+    'Tournez dans le sens indiqué. Au bon chiffre, vous sentez et entendez un déclic plus lourd et le voyant s’allume. Lâchez à cet instant pour enclencher le cylindre. Trois cylindres, aucun chrono. Moins d’essais, plus gros butin.',
+  turnRight: 'Tournez à droite',
+  turnLeft: 'Tournez à gauche',
+  safeHint: 'Lâchez au déclic lourd',
+  safeOpened: 'Coffre ouvert !',
+  tierName: (t: 'gold' | 'silver' | 'bronze'): string => (t === 'gold' ? 'Coffre d’or' : t === 'silver' ? 'Coffre d’argent' : 'Coffre de bronze'),
+  misses: (n: number) => (n === 0 ? 'Sans un seul raté' : `${n} ${n > 1 ? 'ratés' : 'raté'}`),
+  safesToKey: (n: number) => (n === 1 ? 'Le prochain coffre contient une clé d’or' : `Encore ${n} coffres pour une clé d’or`),
+  rushTitle: 'Ruée vers l’or',
+  rushIntroTitle: 'Ruée vers l’or',
+  rushIntroBody:
+    'Dix tours sur un cadran plein de pions dorés. Chaque rayon ouvert rapporte des pièces, les combos les multiplient, et de nouveaux pions tombent aussitôt. Impossible de perdre : à vous de rafler le plus possible.',
+  rushTurns: (n: number) => `${n} ${n > 1 ? 'tours' : 'tour'}`,
+  rushHaul: (n: number) => `Butin : ${n} pièces`,
+  rushOver: 'Ruée terminée',
+  rushBest: (n: number) => `Record : ${n} pièces`,
+  rushNewBest: 'Nouveau record !',
+  bank: 'Encaisser',
 };
 
 export type Strings = typeof fr;
@@ -159,8 +184,7 @@ const en: Strings = {
   home: 'Home',
   perfect: 'Perfect',
   cleared: 'Lock opened',
-  clearedIn: (turns, par) =>
-    turns <= par ? `In ${turns} ${turns > 1 ? 'turns' : 'turn'}, right on par.` : `In ${turns} turns. Par is ${par}.`,
+  clearedIn: (turns, par) => (turns <= par ? `In ${turns} ${turns > 1 ? 'turns' : 'turn'}, right on par.` : `In ${turns} turns. Par is ${par}.`),
   coinsEarned: (n) => `+${n} coins`,
   doubleCoins: 'Double the coins',
   watchAd: 'Watch an ad',
@@ -242,6 +266,31 @@ const en: Strings = {
   rewardKeys: (n: number) => `${n} golden ${n > 1 ? 'keys' : 'key'}`,
   newSkin: (name: string) => `New style: ${name}`,
   newSkins: 'New styles unlocked',
+  // Bonus rounds
+  bonus: 'Bonus',
+  skip: 'Skip',
+  continue: 'Continue',
+  safeTitle: 'Safecracker',
+  safeIntroTitle: 'Crack it by feel',
+  safeIntroBody:
+    'Turn the dial the way the arrow shows. On the right number you feel and hear a heavier click and the lamp lights up. Let go right then to set the tumbler. Three tumblers, no timer. Fewer tries, bigger haul.',
+  turnRight: 'Turn right',
+  turnLeft: 'Turn left',
+  safeHint: 'Let go on the heavy click',
+  safeOpened: 'Safe cracked!',
+  tierName: (t: 'gold' | 'silver' | 'bronze') => (t === 'gold' ? 'Gold safe' : t === 'silver' ? 'Silver safe' : 'Bronze safe'),
+  misses: (n: number) => (n === 0 ? 'Not a single miss' : `${n} ${n > 1 ? 'misses' : 'miss'}`),
+  safesToKey: (n: number) => (n === 1 ? 'The next safe holds a golden key' : `${n} more safes to a golden key`),
+  rushTitle: 'Golden Rush',
+  rushIntroTitle: 'Golden Rush',
+  rushIntroBody:
+    'Ten turns on a dial packed with golden pins. Every spoke you open pays coins, combos multiply them, and fresh pins drop straight in. You can’t lose: grab as much as you can.',
+  rushTurns: (n: number) => `${n} ${n === 1 ? 'turn' : 'turns'}`,
+  rushHaul: (n: number) => `Haul: ${n} coins`,
+  rushOver: 'Rush over',
+  rushBest: (n: number) => `Best: ${n} coins`,
+  rushNewBest: 'New best!',
+  bank: 'Bank it',
 };
 
 const TABLE: Record<Lang, Strings> = { fr, en };

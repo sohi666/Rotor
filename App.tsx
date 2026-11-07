@@ -17,6 +17,8 @@ import { LevelsScreen } from './src/screens/LevelsScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { ShopScreen } from './src/screens/ShopScreen';
 import { LockboxScreen } from './src/screens/LockboxScreen';
+import { SafecrackerScreen } from './src/screens/SafecrackerScreen';
+import { RushScreen } from './src/screens/RushScreen';
 import { getProgress, localDateKey, vaultsCleared } from './src/state/store';
 import { syncVaultSkins } from './src/skins';
 import { initAudio, warmUp } from './src/feedback';
@@ -49,10 +51,23 @@ function initialStack(): Route[] {
   const daily = q.get('daily');
   if (daily) return [home, { name: 'game', mode: { kind: 'daily', date: daily } }];
   if (q.get('screen') === 'lockbox') return [home, { name: 'lockbox' }];
+  const safe = Number(q.get('safe'));
+  if (safe >= 1) return [home, { name: 'safe', level: safe, next: safe }];
+  const rush = Number(q.get('rush'));
+  if (rush >= 1) return [home, { name: 'rush', level: rush, next: rush }];
   return [home];
 }
 
-type Route = { name: 'home' } | { name: 'levels' } | { name: 'settings' } | { name: 'shop' } | { name: 'lockbox' } | { name: 'game'; mode: GameMode };
+type Route =
+  | { name: 'home' }
+  | { name: 'levels' }
+  | { name: 'settings' }
+  | { name: 'shop' }
+  | { name: 'lockbox' }
+  | { name: 'game'; mode: GameMode }
+  /** Bonus rounds after a first clear; `next` = campaign index to continue with. */
+  | { name: 'safe'; level: number; next: number }
+  | { name: 'rush'; level: number; next: number };
 
 export default function App() {
   const [fontsLoaded] = useFonts({ Unbounded_500Medium, Unbounded_700Bold, Figtree_500Medium, Figtree_600SemiBold, Figtree_700Bold });
@@ -62,6 +77,21 @@ export default function App() {
   const push = useCallback((r: Route) => setStack((s) => [...s, r]), []);
   const replace = useCallback((r: Route) => setStack((s) => [...s.slice(0, -1), r]), []);
   const pop = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);
+  /** Next step after a campaign win: a bonus round on first clears of levels 5, 15, 25... (Safecracker) and vaults (Golden Rush). */
+  const continueAt = useCallback(
+    (index: number) => (index < LEVELS.length ? replace({ name: 'game', mode: { kind: 'campaign', index } }) : pop()),
+    [replace, pop],
+  );
+  const afterLevel = useCallback(
+    ({ index }: { index: number }, firstClear: boolean) => {
+      const level = index + 1;
+      if (firstClear && level % 10 === 5) replace({ name: 'safe', level, next: index + 1 });
+      else if (firstClear && level % 10 === 0) replace({ name: 'rush', level, next: index + 1 });
+      else continueAt(index + 1);
+    },
+    [replace, continueAt],
+  );
+
   // Styles for vaults cleared before the Lockbox existed (or on another build): granted once, shown on Home.
   const [newSkins, setNewSkins] = useState<string[]>(() =>
     syncVaultSkins(
@@ -121,6 +151,17 @@ export default function App() {
           />
         )}
         {route.name === 'lockbox' && <LockboxScreen onBack={pop} onShop={() => push({ name: 'shop' })} />}
+        {route.name === 'safe' && (
+          <SafecrackerScreen
+            key={`safe${route.level}`}
+            level={route.level}
+            onDone={() => continueAt(route.next)}
+            onShop={() => push({ name: 'shop' })}
+          />
+        )}
+        {route.name === 'rush' && (
+          <RushScreen key={`rush${route.level}`} level={route.level} onDone={() => continueAt(route.next)} onShop={() => push({ name: 'shop' })} />
+        )}
         {route.name === 'levels' && (
           <LevelsScreen levels={LEVELS} onBack={pop} onOpen={(index) => push({ name: 'game', mode: { kind: 'campaign', index } })} />
         )}
@@ -133,11 +174,7 @@ export default function App() {
             mode={route.mode}
             onBack={pop}
             onShop={() => push({ name: 'shop' })}
-            onNext={
-              route.mode.kind === 'campaign' && route.mode.index + 1 < LEVELS.length
-                ? () => replace({ name: 'game', mode: { kind: 'campaign', index: (route.mode as { index: number }).index + 1 } })
-                : pop
-            }
+            onNext={route.mode.kind === 'campaign' ? ({ firstClear }) => afterLevel(route.mode as { index: number }, firstClear) : pop}
           />
         )}
       </SafeAreaProvider>

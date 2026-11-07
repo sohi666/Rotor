@@ -110,7 +110,8 @@ export function SettingsScreen({ onBack, onShop }: { onBack: () => void; onShop:
           </Pressable>
         ))}
         <Txt variant="tiny" style={{ marginTop: SPACE.l }}>
-          Rotor {Constants.expoConfig?.version ?? ''} · {Updates.isEmbeddedLaunch || !Updates.updateId ? 'build' : `update ${Updates.updateId.slice(0, 8)}`}
+          Rotor {Constants.expoConfig?.version ?? ''} ·{' '}
+          {Updates.isEmbeddedLaunch || !Updates.updateId ? 'build' : `update ${Updates.updateId.slice(0, 8)}`}
         </Txt>
       </ScrollView>
       <Toast text={toast} />

@@ -154,7 +154,12 @@ export function consumeBooster(kind: 'undo' | 'hint'): boolean {
   return spendCoins(PRICES[kind]);
 }
 
-export function recordLevelWin(index: number, id: string, turns: number, par: number): { stars: number; coins: number; best: boolean } {
+export function recordLevelWin(
+  index: number,
+  id: string,
+  turns: number,
+  par: number,
+): { stars: number; coins: number; best: boolean; first: boolean } {
   const stars = starsFor(turns, par);
   const prevStars = state.stars[id] ?? 0;
   const coins = coinsFor(stars, false) + (prevStars === 0 ? 0 : -5); // replays earn a little less
@@ -166,7 +171,7 @@ export function recordLevelWin(index: number, id: string, turns: number, par: nu
     coins: p.coins + Math.max(5, coins),
     ads: { ...p.ads, levelsSince: p.ads.levelsSince + 1 },
   }));
-  return { stars, coins: Math.max(5, coins), best: stars > prevStars };
+  return { stars, coins: Math.max(5, coins), best: stars > prevStars, first: prevStars === 0 };
 }
 
 export function localDateKey(d = new Date()): string {

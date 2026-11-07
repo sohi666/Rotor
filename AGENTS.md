@@ -30,6 +30,9 @@ Run lint and typecheck before declaring any task done.
 - `src/game/` — Skia board (`Board.tsx`), gesture worklets, `useGame` state hook.
 - `src/screens/`, `src/ui/` — screens and UI kit. Navigation is a tiny stack in `App.tsx` (no Expo Router: a five-screen game doesn't need it).
 - `src/services/` — ads (AdMob), purchases (RevenueCat), analytics seam; `*.web.ts` stubs keep the web preview working.
+- Rewards: `src/state/store.ts` (star chests every 15 stars, 7-day daily key, golden keys, `grantRewards`), `src/skins.ts` (Lockbox catalog; vaults unlock styles in `VAULT_SKINS` order), `src/ui/rewards.tsx`.
+- Bonus rounds after a first clear: levels 5, 15, 25... → `SafecrackerScreen` (rules in `src/game/safe.ts`); vaults 10, 20... → `RushScreen` (`src/game/rush.ts`, `useRush.ts`). Web QA links: `?safe=5`, `?rush=10`, `?screen=lockbox`.
+- Win celebration: `src/game/Celebration.tsx` (Skia overlay, timings mirrored by sounds in `GameScreen`). Sounds are synthesized by `scripts/sfx/make_sfx.py`; add new sounds at the end of `make()` so existing ones stay byte-identical.
 - `src/i18n.ts` — French first (Québec), English second. Every user-facing string goes through it.
 - Web (`npm run web:export`) is a QA/preview target only; `?level=N` or `?daily=YYYY-MM-DD` opens a board directly.
 
@@ -37,6 +40,7 @@ Run lint and typecheck before declaring any task done.
 
 - Ads: rewarded videos are opt-in and grant the reward if the ad fails; interstitials only after "Next level", from level 36, max once per 3 levels and 2 minutes, never after Remove Ads.
 - Levels 1-35 have no turn limit. No lives/energy. No paid random items (keeps age rating and loot-box rules simple).
+- Rewards are always shown before they're granted (chest contents, key calendar) and never random when paid for; bonus rounds can't be lost and only follow a level's first clear (no farming).
 - Never await an ad SDK without a timeout: every show() wait has an open timeout and a hard cap (`src/services/ads.ts`). A presentation iOS silently refuses once froze "Next level".
 - In-game cards use the in-screen `Sheet` overlay, not React Native `<Modal>`: a native modal still closing when its screen unmounts (or under an ad) can leave an invisible window that eats all touches on iOS.
 

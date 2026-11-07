@@ -400,7 +400,15 @@ export function Board({ game, size, symbols, hubValue, onNotch, onDeny, onTurnSt
           {/* Hint ring */}
           {hint && (
             <Group opacity={hintOpacity}>
-              <Circle cx={L.cx} cy={L.cy} r={ringMid(L, hint.ring)} style="stroke" strokeWidth={L.band * 0.94} color={dial.accentLight} opacity={0.55} />
+              <Circle
+                cx={L.cx}
+                cy={L.cy}
+                r={ringMid(L, hint.ring)}
+                style="stroke"
+                strokeWidth={L.band * 0.94}
+                color={dial.accentLight}
+                opacity={0.55}
+              />
               {hintArrow && <Path path={hintArrow} style="stroke" strokeWidth={3} strokeCap="round" color={dial.accentDeep} />}
             </Group>
           )}
@@ -408,7 +416,16 @@ export function Board({ game, size, symbols, hubValue, onNotch, onDeny, onTurnSt
           {/* Rotating rings with their pins */}
           {Array.from({ length: Math.min(state.R, MAX_RINGS) }, (_, r) => (
             <Group key={`ring${r}`} origin={vec(L.cx, L.cy)} transform={transforms[r]}>
-              <RingPins L={L} ring={r} cells={state.cells} offset={offsets[r]} symbols={symbols} locked={!!(state.locked & (1 << r))} dial={dial} pins={pins} />
+              <RingPins
+                L={L}
+                ring={r}
+                cells={state.cells}
+                offset={offsets[r]}
+                symbols={symbols}
+                locked={!!(state.locked & (1 << r))}
+                dial={dial}
+                pins={pins}
+              />
             </Group>
           ))}
 
@@ -425,7 +442,9 @@ export function Board({ game, size, symbols, hubValue, onNotch, onDeny, onTurnSt
           ))}
 
           {/* Bursts */}
-          {bursts.map(({ ev, t0: start }) => ev.spokes.map((s) => <SpokeBurst key={`${ev.id}-${s.p}`} L={L} spoke={s} t0={start} clock={clock} pins={pins} glow={dial.accentLight} />))}
+          {bursts.map(({ ev, t0: start }) =>
+            ev.spokes.map((s) => <SpokeBurst key={`${ev.id}-${s.p}`} L={L} spoke={s} t0={start} clock={clock} pins={pins} glow={dial.accentLight} />),
+          )}
 
           {/* Hub */}
           <Group transform={hubTransform} origin={vec(L.cx, L.cy)}>
@@ -433,7 +452,9 @@ export function Board({ game, size, symbols, hubValue, onNotch, onDeny, onTurnSt
               <RadialGradient c={vec(L.cx - L.hub * 0.3, L.cy - L.hub * 0.4)} r={L.hub * 1.4} colors={hub.metal} />
             </Circle>
             <Circle cx={L.cx} cy={L.cy} r={L.hub * 0.7} color={hub.well} />
-            {hubFont && <HubNumber font={hubFont} text={hubText} x={L.cx - hubTextWidth / 2} y={L.cy + L.hub * 0.29} warn={status === 'out'} color={hub.text} />}
+            {hubFont && (
+              <HubNumber font={hubFont} text={hubText} x={L.cx - hubTextWidth / 2} y={L.cy + L.hub * 0.29} warn={status === 'out'} color={hub.text} />
+            )}
           </Group>
         </Canvas>
       </View>

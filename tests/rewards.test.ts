@@ -28,7 +28,10 @@ describe('star chests', () => {
     expect(chestProgress(getProgress()).ready).toBe(2);
     const coins = getProgress().coins;
     const r = openStarChest();
-    expect(r).toEqual([{ kind: 'coins', n: 60 }, { kind: 'hint', n: 1 }]);
+    expect(r).toEqual([
+      { kind: 'coins', n: 60 },
+      { kind: 'hint', n: 1 },
+    ]);
     expect(getProgress().coins).toBe(coins + 60);
     expect(chestProgress(getProgress()).ready).toBe(1);
   });

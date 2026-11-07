@@ -1,15 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  applyTurn,
-  canonicalKey,
-  canTurn,
-  fromDef,
-  findClears,
-  isWon,
-  mightBeSolvable,
-  ringsToStrings,
-  solve,
-} from '../src/engine';
+import { applyTurn, canonicalKey, canTurn, fromDef, findClears, isWon, mightBeSolvable, ringsToStrings, solve } from '../src/engine';
 import { generate } from '../src/engine/generator';
 import levels from '../src/data/levels.json';
 import type { LevelDef } from '../src/engine/types';

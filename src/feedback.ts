@@ -23,6 +23,8 @@ const SOURCES = {
   star3: [require('../assets/sfx/star3.wav')],
   sparkle: [require('../assets/sfx/sparkle.wav')],
   jackpot: [require('../assets/sfx/jackpot.wav')],
+  tumbler: [require('../assets/sfx/tumbler.wav')],
+  safeopen: [require('../assets/sfx/safeopen.wav')],
 } as const;
 
 export type Sfx = keyof typeof SOURCES;
@@ -115,7 +117,8 @@ export const buzz = {
       androidHaptic(spokes >= 2 ? A.Long_Press : A.Confirm, spokes >= 2 ? 0 : 30, () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
       return;
     }
-    const style = spokes >= 3 ? Haptics.ImpactFeedbackStyle.Heavy : spokes === 2 ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light;
+    const style =
+      spokes >= 3 ? Haptics.ImpactFeedbackStyle.Heavy : spokes === 2 ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light;
     quiet(Haptics.impactAsync(style));
   },
   win(): void {
@@ -127,6 +130,12 @@ export const buzz = {
     if (!on()) return;
     if (isAndroid) androidHaptic(A.Reject, 30, () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
     else quiet(Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
+  },
+  /** Safecracker tumbler catch: clearly heavier than a dial tick, still short. */
+  tumbler(): void {
+    if (!on()) return;
+    if (isAndroid) androidHaptic(A.Long_Press);
+    else quiet(Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy));
   },
   tap(): void {
     if (!on()) return;

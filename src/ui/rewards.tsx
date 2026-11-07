@@ -1,9 +1,9 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { C, F, SPACE } from '../theme';
-import { Button, Sheet, Txt, bannerEnter } from './kit';
+import { Button, Sheet, Txt } from './kit';
 import { KEY_REWARDS, STAR_CHEST_COST, type Reward } from '../state/store';
 import { useStrings } from '../useStrings';
 
@@ -56,7 +56,7 @@ export function RewardSheet({
   return (
     <Sheet visible={visible} onClose={onCollect}>
       <View style={{ alignItems: 'center', gap: SPACE.m }}>
-        <Animated.View entering={bannerEnter} style={styles.bigIcon}>
+        <Animated.View entering={FadeIn.duration(220)} style={styles.bigIcon}>
           <MaterialCommunityIcons name={icon} size={54} color={C.brassLight} />
         </Animated.View>
         <Txt variant="title" center>

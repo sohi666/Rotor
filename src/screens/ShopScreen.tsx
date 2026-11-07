@@ -57,9 +57,7 @@ export function ShopScreen({ onBack }: { onBack: () => void }) {
           </View>
         )}
         <Txt variant="heading">{s.coins}</Txt>
-        <Txt variant="small">
-          {`${s.hint} ${PRICES.hint}, ${s.undo.toLowerCase()} ${PRICES.undo}, ${s.plusThree} ${PRICES.extraTurns}`}
-        </Txt>
+        <Txt variant="small">{`${s.hint} ${PRICES.hint}, ${s.undo.toLowerCase()} ${PRICES.undo}, ${s.plusThree} ${PRICES.extraTurns}`}</Txt>
         {items
           .filter((i) => i.coins)
           .map((i) => (

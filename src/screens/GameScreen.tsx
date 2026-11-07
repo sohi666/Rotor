@@ -38,7 +38,8 @@ interface Props {
   def: LevelDef;
   mode: GameMode;
   onBack: () => void;
-  onNext?: () => void;
+  /** firstClear: the level had never been won before (bonus rounds only follow a first clear). */
+  onNext?: (opts: { firstClear: boolean }) => void;
   onShop: () => void;
 }
 
@@ -151,7 +152,9 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
     recorded.current = true;
     let res: { stars: number; coins: number; streak?: number };
     if (mode.kind === 'campaign') {
-      res = recordLevelWin(mode.index, def.id, game.turns, def.par);
+      const rec = recordLevelWin(mode.index, def.id, game.turns, def.par);
+      firstClear.current = rec.first;
+      res = rec;
       // Each vault opens a Lockbox style, in a fixed order.
       const vaultSkin = isVault ? VAULT_SKINS[levelNumber / 10 - 1] : undefined;
       if (vaultSkin && grantSkin(vaultSkin)) setWonSkin(vaultSkin);
@@ -308,6 +311,7 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
   };
 
   const leaving = useRef(false);
+  const firstClear = useRef(false);
   const onNextLevel = async () => {
     if (leaving.current) return; // double taps
     leaving.current = true;
@@ -317,7 +321,7 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
     } catch {
       // An ad problem must never keep the player on this screen.
     } finally {
-      onNext?.();
+      onNext?.({ firstClear: firstClear.current });
     }
   };
 

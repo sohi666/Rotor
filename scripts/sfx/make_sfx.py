@@ -289,6 +289,21 @@ def make():
     place(b, bell(G6, 1.4, bright=0.7), 0.02, 0.25)
     out.append(write("jackpot", finish(reverb(b, 0.2), -3)))
 
+    # Safecracker: the tumbler catch, a deeper, heavier click than a dial tick.
+    b = buf(0.25)
+    place(b, click(980, 0.12, 110, level=1.0, noise=0.6), 0)
+    place(b, thump(95, 0.16, 0.035, 0.7), 0.004, 0.8)
+    out.append(write("tumbler", finish(b, -3)))
+
+    # Safecracker: the safe door swinging open (latch, hinge creak, low boom).
+    b = buf(1.4)
+    place(b, clunk(65, (380, 1050), 0.35, heavy=2.0), 0)
+    t = tt(0.7)
+    creak = band(rng.standard_normal(len(t)), 500, 1600) * (0.5 + 0.5 * np.sin(2 * np.pi * (9 + 6 * t) * t)) * np.exp(-((t - 0.3) / 0.22) ** 2)
+    place(b, creak, 0.12, 0.35)
+    place(b, thump(48, 0.6, 0.18, 0.3), 0.55, 0.9)
+    out.append(write("safeopen", finish(reverb(b, 0.25, 1.2, 0.5), -2)))
+
     return out
 
 
