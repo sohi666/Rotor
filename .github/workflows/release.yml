@@ -617,15 +617,25 @@ jobs:
         run: bash scripts/ci/write-secrets.sh android
 
       - uses: ruby/setup-ruby@v1
-        if: env.GOOGLE_SERVICE_ACCOUNT_JSON != '' && vars.PLAY_SYNC_LISTING == 'true'
+        if: env.GOOGLE_SERVICE_ACCOUNT_JSON != '' && vars.PLAY_SYNC_LISTING != 'false'
         with:
           ruby-version: '3.3'
           bundler-cache: true
 
-      - name: Sync Play store listing (fastlane supply, opt-in)
+      # The listing in fastlane/metadata/android is the source of truth (set PLAY_SYNC_LISTING=false to stop syncing).
+      # A listing problem must not block the build upload, so it notifies on its own.
+      - name: Sync Play store listing (fastlane supply)
         id: listing
-        if: env.GOOGLE_SERVICE_ACCOUNT_JSON != '' && vars.PLAY_SYNC_LISTING == 'true'
+        if: env.GOOGLE_SERVICE_ACCOUNT_JSON != '' && vars.PLAY_SYNC_LISTING != 'false'
+        continue-on-error: true
         run: bundle exec fastlane android metadata 2>&1 | tee "$RUNNER_TEMP/fastlane-android.log"
+
+      - name: Notify listing problem
+        if: steps.listing.outcome == 'failure'
+        run: |
+          bash scripts/notify.sh "ACTION NEEDED: Play store listing not updated" \
+            "fastlane supply could not upload the listing from fastlane/metadata/android (the build upload continues). Open the run log, or fill the listing in Play Console." \
+            high warning "$RUN_URL"
 
       - name: Upload to Google Play (eas submit)
         id: upload
