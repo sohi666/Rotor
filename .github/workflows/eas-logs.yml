@@ -7,7 +7,11 @@ on:
     inputs:
       build_id:
         description: EAS build ID (from the expo.dev build URL)
-        required: true
+        required: false
+        type: string
+      submission_id:
+        description: Or an EAS submission ID (from the expo.dev submission URL)
+        required: false
         type: string
 
 permissions:
@@ -30,7 +34,29 @@ jobs:
           eas-version: '27.4.1'
           token: ${{ secrets.EXPO_TOKEN }}
           packager: npm
+      - name: Submission error and logs
+        if: inputs.submission_id != ''
+        env:
+          SUBMISSION_ID: ${{ inputs.submission_id }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -u +e
+          q='query($id: ID!) { submissions { byId(submissionId: $id) { id status platform androidConfig { track releaseStatus } error { errorCode message } logFiles } } }'
+          jq -n --arg q "$q" --arg id "$SUBMISSION_ID" '{query: $q, variables: {id: $id}}' |
+            curl -sS https://api.expo.dev/graphql -H "Authorization: Bearer $EXPO_TOKEN" -H 'Content-Type: application/json' --data @- > sub.json
+          jq '.errors // empty' sub.json
+          jq '.data.submissions.byId | {status, platform, androidConfig, error}' sub.json
+          i=0
+          for url in $(jq -r '.data.submissions.byId.logFiles[]? // empty' sub.json); do
+            i=$((i+1))
+            curl -sSL --compressed "$url" -o "sraw$i" || continue
+            if file -b "sraw$i" | grep -qi gzip; then gunzip -c "sraw$i" > "slog$i.txt"; else cp "sraw$i" "slog$i.txt"; fi
+            echo "================ submission log $i ================"
+            jq -r 'select(.msg != null) | "\(.time // "") \(.msg)"' "slog$i.txt" 2>/dev/null || cat "slog$i.txt"
+          done
+
       - name: Build summary and logs
+        if: inputs.build_id != ''
         env:
           BUILD_ID: ${{ inputs.build_id }}
         run: |
