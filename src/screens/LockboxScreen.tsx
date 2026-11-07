@@ -38,7 +38,7 @@ const PREVIEW: LevelDef = {
   difficulty: 1,
 };
 
-export function LockboxScreen({ onBack, onShop }: { onBack: () => void; onShop: () => void }) {
+export function LockboxScreen({ onBack, onShop }: { onBack: () => void; onShop?: () => void }) {
   const s = useStrings();
   const p = useProgress();
   const insets = useSafeAreaInsets();

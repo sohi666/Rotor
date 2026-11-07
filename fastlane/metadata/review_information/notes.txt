@@ -1,7 +1,7 @@
-No account or login is required, and the game works offline.
+No account or login is required, and the game works fully offline.
 
-Ads are served by Google AdMob: rewarded videos are optional, and occasional end-of-level ads start after level 35. Permission to track is requested through App Tracking Transparency.
+This version shows no ads and offers no in-app purchases. Coins are earned by playing and spent on hints, undos and cosmetic dial styles.
 
-The non-consumable in-app purchase "Remove ads" turns off the end-of-level ads.
+Bonus rounds: after the first clear of level 5 (then 15, 25...) a "Safecracker" round opens; after level 10 (every 10th level) a "Golden Rush" round opens. Both have a Skip button and can't be lost. To see them quickly, play levels 1 to 5.
 
-Aucun compte n'est requis et le jeu fonctionne hors ligne.
+Aucun compte n'est requis et le jeu fonctionne entièrement hors ligne. Cette version n'affiche aucune publicité et ne propose aucun achat intégré.

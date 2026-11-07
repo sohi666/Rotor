@@ -1,1 +1,1 @@
-Première version de Rotor : 200 niveaux vérifiés par un solveur, la Combinaison du jour à partager et des symboles pour jouer sans se fier aux couleurs.
+Première version de Rotor : 200 niveaux vérifiés par un solveur, la Combinaison du jour à partager, des coffres-forts à ouvrir au toucher, des ruées vers l'or, des coffres à étoiles, des styles à collectionner et des symboles pour jouer sans se fier aux couleurs.

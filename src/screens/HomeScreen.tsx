@@ -17,7 +17,7 @@ interface Props {
   onPlay: (index: number) => void;
   onDaily: () => void;
   onLevels: () => void;
-  onShop: () => void;
+  onShop?: () => void;
   onSettings: () => void;
   onLockbox: () => void;
   /** Styles granted at launch for vaults already cleared (shown once). */
@@ -92,9 +92,11 @@ export function HomeScreen({ campaignLength, onPlay, onDaily, onLevels, onShop, 
             )}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACE.l }}>
-            <Pressable onPress={onShop} accessibilityRole="button" accessibilityLabel={s.shop} hitSlop={12}>
-              <Ionicons name="storefront-outline" size={25} color={C.ivory} />
-            </Pressable>
+            {onShop && (
+              <Pressable onPress={onShop} accessibilityRole="button" accessibilityLabel={s.shop} hitSlop={12}>
+                <Ionicons name="storefront-outline" size={25} color={C.ivory} />
+              </Pressable>
+            )}
             <Pressable onPress={onSettings} accessibilityRole="button" accessibilityLabel={s.settings} hitSlop={12}>
               <Ionicons name="settings-outline" size={26} color={C.ivory} />
             </Pressable>

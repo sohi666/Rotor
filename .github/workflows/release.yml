@@ -33,6 +33,10 @@ on:
         description: Optional - reuse this finished EAS iOS build ID instead of building again (saves a free-plan build)
         type: string
         default: ''
+      android_promote:
+        description: No Android build - promote the newest internal-testing release to production and send it to Google review
+        type: boolean
+        default: false
   push:
     # Tag pushes use the repository variables RELEASE_PLATFORM (all),
     # RELEASE_ANDROID_TRACK (production), RELEASE_ANDROID_STATUS (completed)
@@ -76,6 +80,7 @@ jobs:
       review_only: ${{ steps.cfg.outputs.review_only }}
       version: ${{ steps.cfg.outputs.version }}
       ios_build_id: ${{ steps.cfg.outputs.ios_build_id }}
+      android_promote: ${{ steps.cfg.outputs.android_promote }}
     steps:
       - uses: actions/checkout@v6
 
@@ -89,6 +94,7 @@ jobs:
           IN_REVIEW: ${{ inputs.submit_for_review }}
           IN_REVIEW_ONLY: ${{ inputs.ios_review_only }}
           IN_IOS_BUILD_ID: ${{ inputs.ios_build_id }}
+          IN_ANDROID_PROMOTE: ${{ inputs.android_promote }}
           TAG_PLATFORM: ${{ vars.RELEASE_PLATFORM || 'all' }}
           TAG_TRACK: ${{ vars.RELEASE_ANDROID_TRACK || 'production' }}
           TAG_STATUS: ${{ vars.RELEASE_ANDROID_STATUS || 'completed' }}
@@ -146,6 +152,7 @@ jobs:
             echo "review_only=$review_only"
             echo "version=$version"
             echo "ios_build_id=$ios_build_id"
+            echo "android_promote=${IN_ANDROID_PROMOTE:-false}"
           } >>"$GITHUB_OUTPUT"
           echo "Release $version: platform=$platform android=$track/$status (profile $profile) ios_review=$review review_only=$review_only"
 
@@ -154,9 +161,13 @@ jobs:
         run: |
           issues="$(node -e '
             const x = require("./app.json").expo, extra = x.extra ?? {}, out = [];
-            if (JSON.stringify(x.plugins ?? []).includes("ca-app-pub-3940256099942544")) out.push("AdMob app IDs are Google sample IDs");
-            if (extra.ads?.useTestIds) out.push("extra.ads.useTestIds is true");
-            if (!extra.revenuecat?.ios || !extra.revenuecat?.android) out.push("RevenueCat API keys are empty (Remove ads purchase will not work; Apple rejects broken IAPs)");
+            // Ads off (no unit ids, no test ids) and no RevenueCat keys is a valid free release:
+            // the app never starts the ad SDK and hides every purchase button.
+            const units = ["ios", "android"].some((p) => extra.ads?.[p]?.rewarded || extra.ads?.[p]?.interstitial);
+            if (extra.ads?.useTestIds) out.push("extra.ads.useTestIds is true (test ads in a store build)");
+            if (units && JSON.stringify(x.plugins ?? []).includes("ca-app-pub-3940256099942544")) out.push("ad units are set but the AdMob app IDs are Google sample IDs");
+            const rc = [extra.revenuecat?.ios, extra.revenuecat?.android].filter(Boolean).length;
+            if (rc === 1) out.push("RevenueCat key set for only one platform (the shop shows on one store only)");
             console.log(out.join("; "));')"
           if [[ -n "$issues" ]]; then
             echo "::warning::$issues"
@@ -306,7 +317,7 @@ jobs:
     # 45-minute cap or memory limit, full Gradle logs in this job.
     name: Android build (GitHub runner)
     needs: [prepare, gate]
-    if: needs.prepare.outputs.review_only != 'true' && needs.prepare.outputs.android == 'true'
+    if: needs.prepare.outputs.review_only != 'true' && needs.prepare.outputs.android == 'true' && needs.prepare.outputs.android_promote != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 150
     outputs:
@@ -657,6 +668,43 @@ jobs:
             NTFY_ACTIONS="view, Run log, ${RUN_URL}" bash scripts/notify.sh "Rotor Android ${APP_VERSION} release FAILED" "A step before the Play upload failed (download/attach .aab or setup). Open the run log." urgent rotating_light "${AAB_URL:-$RUN_URL}"
           fi
 
+      - name: Remove key files
+        if: always()
+        run: bash scripts/ci/write-secrets.sh cleanup
+
+  promote-android:
+    # Promotes the tested internal-testing .aab to production (no rebuild), like iOS reuses the TestFlight build.
+    name: Android - promote internal to production
+    needs: prepare
+    if: needs.prepare.outputs.android == 'true' && needs.prepare.outputs.android_promote == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      APP_VERSION: ${{ needs.prepare.outputs.version }}
+      ANDROID_TRACK: production
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_HIDE_CHANGELOG: '1'
+      FASTLANE_OPT_OUT_USAGE: 'YES'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Write Google service account key
+        run: bash scripts/ci/write-secrets.sh android
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - name: Promote internal testing to production
+        id: promote
+        run: bundle exec fastlane android promote 2>&1 | tee "$RUNNER_TEMP/fastlane-promote.log"
+      - name: Notify
+        run: |
+          bash scripts/notify.sh "Rotor Android ${APP_VERSION} sent to Google review" \
+            "The internal-testing build was promoted to production. Review takes hours to a few days; it goes live automatically after approval unless Managed publishing is on. Google emails any rejection." \
+            default inbox_tray "$PLAY_CONSOLE_URL"
+      - name: Explain failure
+        if: failure()
+        run: bash scripts/ci/explain-failure.sh android-upload "$RUNNER_TEMP/fastlane-promote.log"
       - name: Remove key files
         if: always()
         run: bash scripts/ci/write-secrets.sh cleanup

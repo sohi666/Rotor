@@ -9,18 +9,26 @@ interface Extra {
     android?: { rewarded?: string; interstitial?: string };
   };
   revenuecat?: { ios?: string; android?: string };
-  links?: { privacy?: string; terms?: string; contact?: string; share?: string };
+  /** Site base URL (French pages at the root, English under en/), contact mailto, share link. */
+  links?: { site?: string; contact?: string; share?: string };
 }
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Extra;
 
+const SITE = (extra.links?.site ?? 'https://sohi666.github.io/rotor/').replace(/\/?$/, '/');
+
 export const LINKS = {
-  privacy: extra.links?.privacy ?? 'https://rotor.behtoyi.com/privacy',
-  terms: extra.links?.terms ?? 'https://rotor.behtoyi.com/terms',
-  contact: extra.links?.contact ?? 'mailto:rotor@behtoyi.com',
+  site: SITE,
+  contact: extra.links?.contact ?? '',
   /** Appended to share cards when set (store page or landing page). */
   share: extra.links?.share ?? '',
 };
+
+/** Privacy policy / terms / support page in the player's language. */
+export function siteLink(page: 'privacy' | 'terms' | 'support', lang: 'fr' | 'en'): string {
+  const base = lang === 'en' ? `${SITE}en/` : SITE;
+  return page === 'support' ? base : `${base}${page}.html`;
+}
 
 export function adUnits(): { rewarded: string; interstitial: string } | null {
   const units = Platform.OS === 'ios' ? extra.ads?.ios : extra.ads?.android;
@@ -34,6 +42,15 @@ export function adUnits(): { rewarded: string; interstitial: string } | null {
 export function revenueCatKey(): string | null {
   const key = Platform.OS === 'ios' ? extra.revenuecat?.ios : extra.revenuecat?.android;
   return key || null;
+}
+
+/**
+ * In-app purchases exist only when RevenueCat is configured. Without it (1.0 ships free)
+ * the shop, Remove Ads and Restore purchases are hidden everywhere, so no store reviewer
+ * ever meets a purchase button that can't work.
+ */
+export function storeEnabled(): boolean {
+  return revenueCatKey() !== null;
 }
 
 /** Store product identifiers (create the same ids in App Store Connect and Play Console). */

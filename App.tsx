@@ -21,6 +21,7 @@ import { SafecrackerScreen } from './src/screens/SafecrackerScreen';
 import { RushScreen } from './src/screens/RushScreen';
 import { getProgress, localDateKey, vaultsCleared } from './src/state/store';
 import { syncVaultSkins } from './src/skins';
+import { storeEnabled } from './src/services/config';
 import { initAudio, warmUp } from './src/feedback';
 import { initAds } from './src/services/ads';
 import { initPurchases } from './src/services/purchases';
@@ -68,6 +69,9 @@ type Route =
   /** Bonus rounds after a first clear; `next` = campaign index to continue with. */
   | { name: 'safe'; level: number; next: number }
   | { name: 'rush'; level: number; next: number };
+
+/** Shop entry points get this; undefined (no shop) while in-app purchases aren't set up. */
+const SHOP = storeEnabled();
 
 export default function App() {
   const [fontsLoaded] = useFonts({ Unbounded_500Medium, Unbounded_700Bold, Figtree_500Medium, Figtree_600SemiBold, Figtree_700Bold });
@@ -143,29 +147,34 @@ export default function App() {
             onPlay={(index) => push({ name: 'game', mode: { kind: 'campaign', index } })}
             onDaily={() => push({ name: 'game', mode: { kind: 'daily', date: localDateKey() } })}
             onLevels={() => push({ name: 'levels' })}
-            onShop={() => push({ name: 'shop' })}
+            onShop={SHOP ? () => push({ name: 'shop' }) : undefined}
             onSettings={() => push({ name: 'settings' })}
             onLockbox={() => push({ name: 'lockbox' })}
             newSkins={newSkins}
             onSeenNewSkins={() => setNewSkins([])}
           />
         )}
-        {route.name === 'lockbox' && <LockboxScreen onBack={pop} onShop={() => push({ name: 'shop' })} />}
+        {route.name === 'lockbox' && <LockboxScreen onBack={pop} onShop={SHOP ? () => push({ name: 'shop' }) : undefined} />}
         {route.name === 'safe' && (
           <SafecrackerScreen
             key={`safe${route.level}`}
             level={route.level}
             onDone={() => continueAt(route.next)}
-            onShop={() => push({ name: 'shop' })}
+            onShop={SHOP ? () => push({ name: 'shop' }) : undefined}
           />
         )}
         {route.name === 'rush' && (
-          <RushScreen key={`rush${route.level}`} level={route.level} onDone={() => continueAt(route.next)} onShop={() => push({ name: 'shop' })} />
+          <RushScreen
+            key={`rush${route.level}`}
+            level={route.level}
+            onDone={() => continueAt(route.next)}
+            onShop={SHOP ? () => push({ name: 'shop' }) : undefined}
+          />
         )}
         {route.name === 'levels' && (
           <LevelsScreen levels={LEVELS} onBack={pop} onOpen={(index) => push({ name: 'game', mode: { kind: 'campaign', index } })} />
         )}
-        {route.name === 'settings' && <SettingsScreen onBack={pop} onShop={() => push({ name: 'shop' })} />}
+        {route.name === 'settings' && <SettingsScreen onBack={pop} onShop={SHOP ? () => push({ name: 'shop' }) : undefined} />}
         {route.name === 'shop' && <ShopScreen onBack={pop} />}
         {route.name === 'game' && gameDef && (
           <GameScreen
@@ -173,7 +182,7 @@ export default function App() {
             def={gameDef}
             mode={route.mode}
             onBack={pop}
-            onShop={() => push({ name: 'shop' })}
+            onShop={SHOP ? () => push({ name: 'shop' }) : undefined}
             onNext={route.mode.kind === 'campaign' ? ({ firstClear }) => afterLevel(route.mode as { index: number }, firstClear) : pop}
           />
         )}

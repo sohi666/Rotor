@@ -1,4 +1,45 @@
-# Store forms: draft answers for Rotor
+# Store forms: answers for Rotor
+
+## Rotor 1.0: free launch (no ads, no purchases), exact answers
+
+1.0 ships with ads switched off (the Google ad SDK is in the binary but never started), no in-app purchases (shop hidden), no analytics, no account, and all progress on the device. The answers below describe that build. Sections 1-6 further down are the drafts for 1.1, when AdMob and RevenueCat are switched on: update every form again before releasing 1.1.
+
+Links: privacy policy https://sohi666.github.io/rotor/privacy.html (English: https://sohi666.github.io/rotor/en/privacy.html), support and marketing https://sohi666.github.io/rotor/ (English: .../rotor/en/).
+
+### App Store Connect (one time, then the pipeline submits)
+
+| Where | Answer |
+|---|---|
+| App Privacy → Get Started | **No, we do not collect data from this app** → Save → **Publish** |
+| Pricing and Availability | Price **Free**; availability: all countries and regions (or Canada first) |
+| Version 1.0 → App Review Information | Your first and last name, phone and email (only Apple sees them); Sign-in required: **No**. The pipeline uploads the review notes. |
+| App Information → Content Rights | Set by the pipeline: contains third-party content (fonts under SIL OFL, instrument samples under MIT) and you have the rights |
+| Age rating, category, description, keywords, screenshots, URLs | Uploaded by the pipeline (`fastlane/`) |
+| In-App Purchases | None for 1.0 |
+
+### Google Play Console → Dashboard → "Set up your app"
+
+| Task | Answer |
+|---|---|
+| Privacy policy | https://sohi666.github.io/rotor/en/privacy.html |
+| App access | All functionality is available without special access |
+| Ads | **No, my app does not contain ads** |
+| Content rating | Category **Game**. Violence, fear, sexuality, language, controlled substances, crude humour, gambling: **No**. Users interact or share content in the app: **No** (sharing the daily result uses the system share sheet). Digital purchases: **No**. Expected result: Everyone / PEGI 3 |
+| Target audience | **13-15, 16-17, 18 and over**. Could the listing unintentionally appeal to children: **No** |
+| News app | No |
+| Data safety | Collects or shares any required user data types: **No** → Next → Save |
+| Advertising ID | **No** (the 1.0 build removes the AD_ID permission) |
+| Government apps / Financial features / Health | No / My app doesn't provide any financial features / No health features |
+| Store settings | Category **Game → Puzzle**; contact email (required, shown publicly); website https://sohi666.github.io/rotor/ |
+| Main store listing | Text and graphics are in `fastlane/metadata/android` (set the repository variable `PLAY_SYNC_LISTING=true` and the release uploads them) |
+| Countries / regions | Production → Countries/regions → add all (or Canada first) |
+
+Then run **Release** with `android_promote` = true: the tested internal-testing build is promoted to production and sent to Google review.
+
+---
+
+# 1.1 drafts (ads and purchases on)
+
 
 > **DRAFT — confirm every answer before you submit it.** These are drafts, not legal advice. They assume the app uses **Google AdMob** (rewarded and end-of-level ads, App Tracking Transparency on iOS), **RevenueCat** with anonymous app user IDs (one "Remove ads" non-consumable, no login), a **privacy-friendly analytics** SDK that sends anonymous events with no advertising ID, and crash/diagnostic reporting. If the shipped app differs (another SDK, a login, cloud saves, precise location, a different analytics tool), change the answers. Check each SDK's current disclosure page:
 > - Google Mobile Ads: https://developers.google.com/admob/ios/privacy/data-disclosure and the Play "data disclosure" page for Android

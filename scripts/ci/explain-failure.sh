@@ -127,7 +127,9 @@ case "$stage" in
   android-upload)
     aab="${AAB_URL:-$run_url}"
     export NTFY_ACTIONS="view, Download .aab, ${aab}; view, Play Console, ${play}${BUILD_PAGE:+; view, EAS build, ${BUILD_PAGE}}"
-    if has "Package not found|applicationNotFound|upload.*manually|manual(ly)? upload|first (release|upload)|has not been uploaded"; then
+    if has "changesNotSentForReview|not (yet )?been completed|App content|declaration|complete the .*(setup|questionnaire)|precondition|policy (declaration|requirements)|Data safety|content rating"; then
+      action "finish Play Console setup" "Google won't accept a production release until the Play Console Dashboard tasks are done (app content: privacy policy, ads, data safety, content rating, target audience; store listing; countries). Finish them, then re-run with android_promote." "$play"
+    elif has "Package not found|applicationNotFound|upload.*manually|manual(ly)? upload|first (release|upload)|has not been uploaded"; then
       action "first Android upload is manual" "Google Play has never received a build for com.behtoyi.rotor, so the API cannot upload yet. 1) Download the .aab (button; GitHub login). 2) Play Console -> Rotor -> Test and release -> Testing -> Internal testing -> Create new release -> upload it -> Next -> Save and publish. 3) Later releases are automatic." "$aab"
     elif has "draft app|Only releases with status draft"; then
       action "Play app is still a draft" "Google accepts only DRAFT releases until the app is published once. Re-run the release with android_track=internal and android_release_status=draft, finish the Dashboard setup tasks in Play Console, then roll the release out there." "$play"

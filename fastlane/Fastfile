@@ -180,17 +180,45 @@ platform :ios do
       precheck_default_rule_level: :warn,
       submission_information: {
         export_compliance_uses_encryption: false, # HTTPS only (exempt)
-        content_rights_contains_third_party_content: false,
-        # The app shows AdMob ads and requests ATT. Apple removed the IDFA question
-        # from submissions (fastlane >= 2.221 ignores this key); IDFA use is
-        # declared in the App Privacy questionnaire instead (docs/store-forms.md).
-        add_id_info_uses_idfa: true
+        # Licensed third-party assets: fonts (SIL OFL) and instrument samples (FluidR3 GM, MIT).
+        content_rights_contains_third_party_content: true,
+        content_rights_has_rights: true,
+        # 1.0 ships without ads (the ad SDK is never started) and never requests ATT.
+        # Apple now asks about IDFA in the App Privacy questionnaire (docs/store-forms.md).
+        add_id_info_uses_idfa: false
       }
     ))
   end
 end
 
 platform :android do
+  desc "Promote the newest internal-testing release to production (same .aab, no rebuild) and send it to Google review"
+  lane :promote do
+    options = {
+      package_name: ROTOR_APP_IDENTIFIER,
+      track: "internal",
+      track_promote_to: rotor_env("PROMOTE_TO") || "production",
+      track_promote_release_status: "completed",
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    }
+    if (code = rotor_env("VERSION_CODE"))
+      options[:version_code] = code.to_i
+    end
+    if (path = rotor_env("GOOGLE_SERVICE_ACCOUNT_KEY_PATH"))
+      options[:json_key] = path
+    elsif (data = rotor_env("GOOGLE_SERVICE_ACCOUNT_JSON"))
+      options[:json_key_data] = data
+    else
+      UI.user_error!("Set GOOGLE_SERVICE_ACCOUNT_KEY_PATH or GOOGLE_SERVICE_ACCOUNT_JSON")
+    end
+    supply(options)
+  end
+
   desc "Upload the Google Play store listing (text, and images if present); never uploads an .aab"
   lane :metadata do
     options = {

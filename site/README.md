@@ -1,11 +1,14 @@
 # Rotor public site
 
-Static pages the stores and AdMob require. Host this folder at the domain used in `app.json > extra.links`
-(currently `https://rotor.behtoyi.com`), for example with GitHub Pages, Netlify or the corporate site.
+Privacy policy, terms and support pages the stores require, in French (root) and English (`en/`).
+Published at https://sohi666.github.io/rotor/ from the public repository `sohi666/sohi666.github.io`
+(this folder is copied to `rotor/` there). The app reads the base URL from `app.json > extra.links.site`.
 
-- `privacy.html` / `en/privacy.html`: privacy policy URL for App Store Connect, Google Play and AdMob
+- `privacy.html` / `en/privacy.html`: privacy policy URL for App Store Connect and Google Play
 - `terms.html` / `en/terms.html`: terms of use
-- `app-ads.txt`: must be served at the root of the developer website listed in both stores; fill in the AdMob publisher ID
+- `index.html` / `en/index.html`: support and marketing URL
+- `app-ads.txt`: for 1.1 (ads). It must be served at the root of the developer website listed in both
+  stores (https://sohi666.github.io/app-ads.txt), with the AdMob publisher ID filled in.
 
-These are drafts written for the app as built (AdMob with ATT/UMP, RevenueCat, local-only progress, no account).
-Have them reviewed before launch, and update them if an analytics or crash-reporting SDK is added.
+The pages describe 1.0 (no ads, no purchases, nothing collected). Update them before any release that
+switches on AdMob, RevenueCat, analytics or crash reporting.

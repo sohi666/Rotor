@@ -40,7 +40,7 @@ interface Props {
   onBack: () => void;
   /** firstClear: the level had never been won before (bonus rounds only follow a first clear). */
   onNext?: (opts: { firstClear: boolean }) => void;
-  onShop: () => void;
+  onShop?: () => void;
 }
 
 export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {

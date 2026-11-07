@@ -7,12 +7,12 @@ import * as Updates from 'expo-updates';
 import { C, F, SPACE } from '../theme';
 import { Button, Toast, Txt } from '../ui/kit';
 import { setSetting, useProgress } from '../state/store';
-import { useStrings } from '../useStrings';
-import { LINKS } from '../services/config';
+import { useLang, useStrings } from '../useStrings';
+import { LINKS, siteLink } from '../services/config';
 import { restore } from '../services/purchases';
 import type { Lang } from '../i18n';
 
-export function SettingsScreen({ onBack, onShop }: { onBack: () => void; onShop: () => void }) {
+export function SettingsScreen({ onBack, onShop }: { onBack: () => void; onShop?: () => void }) {
   const s = useStrings();
   const p = useProgress();
   const insets = useSafeAreaInsets();
@@ -34,6 +34,7 @@ export function SettingsScreen({ onBack, onShop }: { onBack: () => void; onShop:
     </View>
   );
 
+  const lang = useLang();
   const langs: { key: Lang | null; label: string }[] = [
     { key: null, label: s.langAuto },
     { key: 'fr', label: 'Français' },
@@ -80,29 +81,33 @@ export function SettingsScreen({ onBack, onShop }: { onBack: () => void; onShop:
 
         <View style={styles.divider} />
 
-        {p.adsRemoved ? (
-          <Txt variant="body" color={C.brassLight}>
-            {s.adsRemoved}
-          </Txt>
-        ) : (
-          <Button label={s.removeAds} icon="sparkles-outline" onPress={onShop} />
-        )}
-        <Button
-          label={s.restore}
-          kind="secondary"
-          onPress={async () => {
-            const ok = await restore();
-            setToast(ok ? s.adsRemoved : s.purchaseFailed);
-            setTimeout(() => setToast(null), 2200);
-          }}
-        />
+        {onShop && (
+          <>
+            {p.adsRemoved ? (
+              <Txt variant="body" color={C.brassLight}>
+                {s.adsRemoved}
+              </Txt>
+            ) : (
+              <Button label={s.removeAds} icon="sparkles-outline" onPress={onShop} />
+            )}
+            <Button
+              label={s.restore}
+              kind="secondary"
+              onPress={async () => {
+                const ok = await restore();
+                setToast(ok ? s.adsRemoved : s.purchaseFailed);
+                setTimeout(() => setToast(null), 2200);
+              }}
+            />
 
-        <View style={styles.divider} />
+            <View style={styles.divider} />
+          </>
+        )}
 
         {[
-          { label: s.privacy, url: LINKS.privacy },
-          { label: s.terms, url: LINKS.terms },
-          { label: s.contact, url: LINKS.contact },
+          { label: s.privacy, url: siteLink('privacy', lang) },
+          { label: s.terms, url: siteLink('terms', lang) },
+          { label: s.contact, url: LINKS.contact || siteLink('support', lang) },
         ].map((l) => (
           <Pressable key={l.label} onPress={() => Linking.openURL(l.url).catch(() => undefined)} accessibilityRole="link" style={styles.link}>
             <Txt variant="body">{l.label}</Txt>
