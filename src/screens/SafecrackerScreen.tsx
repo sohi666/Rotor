@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
+  FadeIn,
+  FadeInDown,
   Easing,
   useAnimatedStyle,
   useDerivedValue,
@@ -28,7 +30,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { C, F, SPACE } from '../theme';
 import { Button, Coins, Sheet, Txt } from '../ui/kit';
-import { RewardSheet } from '../ui/rewards';
+import { rewardIcon, useRewardLabel } from '../ui/rewards';
 import { buzz, play, type Sfx } from '../feedback';
 import { grantRewards, markIntroSeen, recordBonus, useProgress, type Reward } from '../state/store';
 import { useStrings } from '../useStrings';
@@ -36,6 +38,9 @@ import { SAFE_DIRS, SAFE_NUMBERS, SAFE_STEP, makeCombo, safeRewards, safeTier, t
 import { Celebration, celebrationLength, coinArrival, type CelebrationSpec } from '../game/Celebration';
 
 const CATCH = 0.62; // same detent hysteresis as the game board
+/** Prize tiles inside the open safe: first one this long after the door starts opening, then one per step. */
+const PRIZE_DELAY = 700;
+const PRIZE_STEP = 260;
 
 export function SafecrackerScreen({ level, onDone, onShop }: { level: number; onDone: () => void; onShop?: () => void }) {
   const s = useStrings();
@@ -49,12 +54,17 @@ export function SafecrackerScreen({ level, onDone, onShop }: { level: number; on
   const [showIntro, setShowIntro] = useState(!p.seenIntros.includes('safe'));
   const [opened, setOpened] = useState(false);
   const [result, setResult] = useState<{ tier: SafeTier; rewards: Reward[]; cracked: number } | null>(null);
+  /** Prizes shown inside the open safe (set as the door opens). */
+  const [prizes, setPrizes] = useState<{ tier: SafeTier; rewards: Reward[] } | null>(null);
+  const rewardLabel = useRewardLabel();
   const [celebration, setCelebration] = useState<CelebrationSpec | null>(null);
   const [coinLag, setCoinLag] = useState(0);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
   const rootRef = useRef<React.ComponentRef<typeof View>>(null);
   const doorRef = useRef<React.ComponentRef<typeof View>>(null);
+  /** The safe's opening: celebrations start from here (the door itself folds away). */
+  const insideRef = useRef<React.ComponentRef<typeof View>>(null);
   const coinsRef = useRef<React.ComponentRef<typeof View>>(null);
 
   const size = Math.max(240, Math.min(width - SPACE.xl * 2, height - insets.top - insets.bottom - 330, 380));
@@ -113,9 +123,17 @@ export function SafecrackerScreen({ level, onDone, onShop }: { level: number; on
       at(350, () => {
         play('safeopen');
         buzz.win();
-        door.value = withTiming(1, { duration: reduceMotion ? 0 : 900, easing: Easing.inOut(Easing.cubic) });
+        door.value = withTiming(1, { duration: reduceMotion ? 0 : 800, easing: Easing.inOut(Easing.cubic) });
         setOpened(true);
+        setPrizes({ tier, rewards });
       });
+      // Each prize tile lands with its own sound (delays match PRIZE_DELAY / PRIZE_STEP below).
+      rewards.forEach((r, i) =>
+        at(350 + PRIZE_DELAY + i * PRIZE_STEP, () => {
+          play(r.kind === 'coins' ? 'coin4' : r.kind === 'goldenKey' ? 'sparkle' : 'key');
+          buzz.notch();
+        }),
+      );
       at(1200, () => {
         setCoinLag(coins);
         grantRewards(rewards);
@@ -125,7 +143,7 @@ export function SafecrackerScreen({ level, onDone, onShop }: { level: number; on
         if (!reduceMotion) startCelebration(tier, Math.min(6, Math.max(3, Math.round(coins / 25))), coins);
         else setCoinLag(0);
       });
-      at(reduceMotion ? 1400 : 2900, () => {
+      at(reduceMotion ? 1400 : 350 + PRIZE_DELAY + rewards.length * PRIZE_STEP + 700, () => {
         setCoinLag(0);
         setResult({ tier, rewards, cracked: cracked + 1 });
       });
@@ -155,7 +173,7 @@ export function SafecrackerScreen({ level, onDone, onShop }: { level: number; on
 
   const startCelebration = (tier: SafeTier, sprites: number, coins: number) => {
     const root = rootRef.current;
-    const box = doorRef.current;
+    const box = insideRef.current;
     const coinsBox = coinsRef.current;
     if (!root || !box) return;
     root.measureInWindow((rx, ry, rw, rh) =>
@@ -290,9 +308,9 @@ export function SafecrackerScreen({ level, onDone, onShop }: { level: number; on
   const lampOpacity = useDerivedValue(() => 0.25 + lamp.value * 0.75);
   const lampGlow = useDerivedValue(() => lamp.value * 0.6);
   const doorStyle = useAnimatedStyle(() => ({
-    transform: [{ perspective: 900 }, { rotateY: `${-84 * door.value}deg` }],
-    opacity: 1 - door.value * 0.15,
+    transform: [{ scaleX: 1 - 0.9 * door.value }],
   }));
+  const doorShade = useAnimatedStyle(() => ({ opacity: door.value * 0.55 }));
 
   const dirNow = SAFE_DIRS[Math.min(step, 2)];
 
@@ -310,8 +328,8 @@ export function SafecrackerScreen({ level, onDone, onShop }: { level: number; on
             {s.safeTitle}
           </Txt>
         </View>
-        <Pressable onPress={onDone} accessibilityRole="button" hitSlop={12} style={styles.skip}>
-          <Text style={styles.skipText}>{s.skip}</Text>
+        <Pressable onPress={opened ? undefined : onDone} accessibilityRole="button" hitSlop={12} style={styles.skip}>
+          <Text style={styles.skipText}>{opened ? '' : s.skip}</Text>
         </Pressable>
       </View>
 
@@ -330,13 +348,39 @@ export function SafecrackerScreen({ level, onDone, onShop }: { level: number; on
           );
         })}
       </View>
-      <Text style={styles.direction}>{step < 3 ? (dirNow === 1 ? s.turnRight : s.turnLeft) : s.safeOpened}</Text>
+      <Text style={styles.direction}>{step < 3 ? (dirNow === 1 ? s.turnRight : s.turnLeft) : prizes ? s.tierName(prizes.tier) : s.safeOpened}</Text>
 
       <View style={styles.stage}>
-        <View style={[styles.interior, { width: size, height: size }]}>
-          <MaterialCommunityIcons name="treasure-chest" size={size * 0.36} color={C.brassLight} />
+        <View ref={insideRef} collapsable={false} style={[styles.interior, { width: size, height: size }]}>
+          {prizes ? (
+            <View style={styles.prizes}>
+              <Animated.View entering={FadeIn.delay(PRIZE_DELAY - 250).duration(300)}>
+                <MaterialCommunityIcons name="treasure-chest" size={size * 0.2} color={C.brassLight} />
+              </Animated.View>
+              {prizes.rewards.map((r, i) => {
+                const gold = r.kind === 'goldenKey';
+                return (
+                  <Animated.View
+                    key={`${r.kind}${i}`}
+                    entering={FadeInDown.delay(PRIZE_DELAY + i * PRIZE_STEP).duration(300)}
+                    style={[styles.prize, gold && styles.prizeGold]}
+                  >
+                    <MaterialCommunityIcons name={rewardIcon(r)} size={26} color={gold ? C.ink : C.brassLight} />
+                    <Text style={[styles.prizeText, gold && { color: C.ink }]}>{rewardLabel(r)}</Text>
+                  </Animated.View>
+                );
+              })}
+            </View>
+          ) : (
+            <MaterialCommunityIcons name="treasure-chest" size={size * 0.36} color={C.brassLight} />
+          )}
         </View>
-        <Animated.View ref={doorRef} collapsable={false} style={[{ width: size, height: size, transformOrigin: 'left center' }, doorStyle]}>
+        <Animated.View
+          ref={doorRef}
+          collapsable={false}
+          pointerEvents={opened ? 'none' : 'auto'}
+          style={[{ width: size, height: size, transformOrigin: 'left center' }, doorStyle]}
+        >
           <GestureDetector gesture={pan}>
             <View style={{ width: size, height: size }}>
               <Canvas style={{ width: size, height: size }}>
@@ -389,13 +433,25 @@ export function SafecrackerScreen({ level, onDone, onShop }: { level: number; on
                 <Circle cx={c} cy={c - R * 1.22} r={R * 0.16} color="#FFE7A3" opacity={lampGlow} />
                 <Circle cx={c} cy={c - R * 1.22} r={R * 0.065} color="#FFD45A" opacity={lampOpacity} />
               </Canvas>
+              <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.doorShade, doorShade]} />
             </View>
           </GestureDetector>
         </Animated.View>
       </View>
 
-      <Text style={styles.hint}>{s.safeHint}</Text>
-      <Text style={styles.misses}>{s.misses(misses)}</Text>
+      {result ? (
+        <Animated.View entering={FadeInDown.duration(300)} style={styles.footer}>
+          <Text style={styles.misses}>
+            {s.misses(misses)}. {s.safesToKey(3 - (result.cracked % 3))}
+          </Text>
+          <Button label={s.collect} onPress={onDone} style={{ alignSelf: 'stretch' }} />
+        </Animated.View>
+      ) : (
+        <View style={styles.footer}>
+          <Text style={styles.hint}>{step < 3 ? s.safeHint : ' '}</Text>
+          <Text style={styles.misses}>{s.misses(misses)}</Text>
+        </View>
+      )}
 
       {celebration && <Celebration spec={celebration} />}
 
@@ -420,21 +476,6 @@ export function SafecrackerScreen({ level, onDone, onShop }: { level: number; on
         </View>
       </Sheet>
 
-      <RewardSheet
-        visible={!!result}
-        title={result ? s.tierName(result.tier) : ''}
-        icon="safe"
-        rewards={result?.rewards ?? []}
-        extra={
-          result ? (
-            <View style={{ alignItems: 'center', gap: 4 }}>
-              <Txt variant="small">{s.misses(misses)}</Txt>
-              <Txt variant="small">{s.safesToKey(3 - (result.cracked % 3))}</Txt>
-            </View>
-          ) : null
-        }
-        onCollect={onDone}
-      />
       {opened && !result && <Pressable style={StyleSheet.absoluteFill} accessible={false} />}
     </View>
   );
@@ -469,6 +510,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  footer: { alignItems: 'center', gap: SPACE.s, paddingHorizontal: SPACE.xl, minHeight: 96, justifyContent: 'center' },
+  doorShade: { backgroundColor: '#000', borderRadius: 24 },
+  prizes: { alignItems: 'center', gap: SPACE.s, alignSelf: 'stretch', paddingHorizontal: '16%' },
+  prize: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.m,
+    alignSelf: 'stretch',
+    backgroundColor: C.petrolDeep,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: C.brass,
+    paddingVertical: SPACE.s,
+    paddingHorizontal: SPACE.m,
+  },
+  prizeGold: { backgroundColor: C.brassLight, borderColor: C.brassDeep },
+  prizeText: { fontFamily: F.uiBold, fontSize: 18, color: C.ivory },
   hint: { fontFamily: F.uiSemi, fontSize: 15, color: C.ivory, textAlign: 'center' },
   misses: { fontFamily: F.ui, fontSize: 13, color: C.ivoryDim, textAlign: 'center', marginTop: 4 },
 });
