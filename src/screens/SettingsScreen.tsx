@@ -113,6 +113,9 @@ export function SettingsScreen({ onBack, onShop }: { onBack: () => void; onShop:
           Rotor {Constants.expoConfig?.version ?? ''} ·{' '}
           {Updates.isEmbeddedLaunch || !Updates.updateId ? 'build' : `update ${Updates.updateId.slice(0, 8)}`}
         </Txt>
+        <Txt variant="tiny" style={{ marginTop: SPACE.xs, opacity: 0.75 }}>
+          {s.soundCredit}
+        </Txt>
       </ScrollView>
       <Toast text={toast} />
     </View>

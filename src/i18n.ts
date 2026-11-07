@@ -150,6 +150,7 @@ const fr = {
   rushBest: (n: number) => `Record : ${n} pièces`,
   rushNewBest: 'Nouveau record !',
   bank: 'Encaisser',
+  soundCredit: 'Instruments : banque de sons FluidR3 GM, Frank Wen (licence MIT).',
 };
 
 export type Strings = typeof fr;
@@ -291,6 +292,7 @@ const en: Strings = {
   rushBest: (n: number) => `Best: ${n} coins`,
   rushNewBest: 'New best!',
   bank: 'Bank it',
+  soundCredit: 'Instruments: FluidR3 GM sound bank by Frank Wen (MIT licence).',
 };
 
 const TABLE: Record<Lang, Strings> = { fr, en };

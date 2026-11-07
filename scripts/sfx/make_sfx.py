@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """
-Rotor sound set: "brass and bells". Everything is synthesized here (no samples, no
-licences), so the set is reproducible:  python3 scripts/sfx/make_sfx.py
-
-Palette: crisp mechanical clicks and bolt clunks for the lock, struck bells that climb
-a C-major arpeggio as combos grow, a marimba + brass fanfare when the vault opens,
-and bright coin chings. Relative loudness is baked into the files (peak dBFS below).
+Rotor's mechanical sounds (detent clicks, ratchet, tumbler catch), synthesized here.
+The musical sounds come from render_gm.py (real instrument samples). Run both:
+    python3 scripts/sfx/make_sfx.py && python3 scripts/sfx/render_gm.py
+Relative loudness is baked into the files (peak dBFS below).
 """
 from pathlib import Path
 
@@ -78,8 +76,7 @@ def bell(f, d=1.2, bright=1.0, decay=1.0):
         fr = f * r
         if fr > SR * 0.45:
             continue
-        beat = 1 + 0.004 * np.sin(2 * np.pi * (0.7 + r) * t)
-        s += a * np.sin(2 * np.pi * fr * t * beat + rng.uniform(0, 6)) * np.exp(-t / (tau * decay))
+        s += a * np.sin(2 * np.pi * fr * t + rng.uniform(0, 6)) * np.exp(-t / (tau * decay))
     # strike transient
     strike = highpass(rng.standard_normal(len(t)), 3000) * np.exp(-t / 0.0025) * 0.25
     return attack(s + strike, 1.5)
@@ -100,13 +97,15 @@ def brass(f, d, swell=0.12, vib=True):
     env = np.minimum(1, t / swell) ** 1.6
     rel = 0.18
     env *= np.clip((d - t) / rel, 0, 1)
-    vibrato = 1 + (0.0035 * np.sin(2 * np.pi * 5.3 * t) * np.clip((t - 0.18) / 0.2, 0, 1) if vib else 0)
+    # Vibrato as integrated phase (multiplying t by a varying factor makes the depth grow over time).
+    depth = 0.0035 * np.clip((t - 0.18) / 0.2, 0, 1) if vib else np.zeros_like(t)
+    phase = 2 * np.pi * np.cumsum(f * (1 + depth * np.sin(2 * np.pi * 5.3 * t))) / SR
     s = np.zeros_like(t)
     for n in range(1, 14):
         if f * n > SR * 0.45:
             break
         amp = (1 / n ** 1.05) * env ** (1 + 0.35 * n)  # brighter as it swells
-        s += amp * np.sin(2 * np.pi * f * n * t * vibrato)
+        s += amp * np.sin(n * phase)
     breath = band(rng.standard_normal(len(t)), f * 2, f * 6) * env * 0.02
     return s + breath
 
@@ -194,48 +193,13 @@ def write(name, x):
 # --- the set ---------------------------------------------------------------------
 
 def make():
+    """Mechanical sounds only. The musical ones (bells, fanfare, coins, stars) are rendered
+    from real instrument samples by render_gm.py, which runs after this script."""
     out = []
 
     # Ring detents: three slightly different clicks so spinning doesn't sound looped.
     for i, (res, body) in enumerate(((2900, 190), (3150, 175), (2700, 205))):
         out.append(write(["notch", "notch2", "notch3"][i], finish(click(res, 0.04, body), -7)))
-
-    # Tap: soft wooden tick for buttons.
-    t = tt(0.06)
-    tap = marimba(1900, 0.06) * np.exp(-t / 0.012) + click(4200, 0.06, 300, 0.3)
-    out.append(write("tap", finish(tap, -10)))
-
-    # Spoke unlock: bolt clunk, then a bell (C6).
-    b = buf(1.2)
-    place(b, clunk(90), 0)
-    place(b, bell(C6, 1.1), 0.03, 0.55)
-    out.append(write("unlock", finish(reverb(b, 0.2), -3)))
-
-    # Combos: the bell climbs. x2 = E6+G6, x3+ = C6 E6 G6 C7 arpeggio.
-    b = buf(1.3)
-    place(b, clunk(95), 0)
-    place(b, bell(E6, 1.1), 0.03, 0.5)
-    place(b, bell(G6, 1.1), 0.11, 0.5)
-    out.append(write("combo2", finish(reverb(b, 0.22), -2.5)))
-
-    b = buf(1.5)
-    place(b, clunk(100, heavy=1.2), 0)
-    for i, f in enumerate((C6, E6, G6, C7)):
-        place(b, bell(f, 1.1), 0.03 + i * 0.065, 0.45)
-    out.append(write("combo3", finish(reverb(b, 0.25), -2)))
-
-    # Key picked up: small metallic jingle.
-    b = buf(0.6)
-    for i, f in enumerate((G7, E7, G7)):
-        place(b, ching(f * 1.02, 0.35), i * 0.045, 0.45)
-    place(b, bell(G6, 0.5, bright=0.6), 0.02, 0.25)
-    out.append(write("key", finish(reverb(b, 0.15), -8)))
-
-    # Blocked ring: two dull knocks, no bell.
-    b = buf(0.35)
-    place(b, thump(140, 0.15, 0.03, 0.5) + band(rng.standard_normal(int(SR * 0.15)), 250, 900) * np.exp(-tt(0.15) / 0.01) * 0.4, 0)
-    place(b, thump(118, 0.15, 0.03, 0.5) * 0.85, 0.095)
-    out.append(write("deny", finish(b, -7)))
 
     # Victory lap: ratchet cascade that spins up and settles.
     b = buf(0.75)
@@ -249,61 +213,11 @@ def make():
         place(b, click(res, 0.04, 170 + rng.uniform(-15, 15), level=0.55 + 0.45 * np.sin(np.pi * i / 15)), at)
     out.append(write("ratchet", finish(b, -6)))
 
-    # Vault opens: heavy double clunk, marimba run, brass C-major swell, bell shimmer.
-    b = buf(2.2)
-    place(b, clunk(70, (480, 1300), 0.3, heavy=1.6), 0)
-    place(b, clunk(60, (420, 1150), 0.35, heavy=2.0), 0.09, 1.1)
-    for i, f in enumerate((G5, C6, E6, G6)):
-        place(b, marimba(f, 0.6), 0.16 + i * 0.07, 0.42)
-    chord = brass(C5 / 2, 1.2) * 0.5 + brass(C5, 1.2) * 0.42 + brass(E5, 1.2) * 0.32 + brass(G5, 1.2) * 0.3
-    place(b, chord, 0.42, 0.55)
-    place(b, bell(C7, 1.3, bright=0.7), 0.44, 0.22)
-    place(b, bell(G6, 1.3, bright=0.7), 0.46, 0.18)
-    out.append(write("win", finish(reverb(b, 0.24, 1.1, 0.8), -1)))
-
-    # Coins landing in the counter: four rising chings, played in order.
-    for name, f in (("coin1", C7), ("coin2", D7), ("coin3", E7), ("coin4", G7)):
-        out.append(write(name, finish(reverb(ching(f), 0.12, 0.8, 0.25), -9)))
-
-    # Stars stamping in: do - mi - sol (marimba + soft thump + bell overtone).
-    for name, f in (("star1", C6), ("star2", E6), ("star3", G6)):
-        b = buf(0.9)
-        place(b, thump(120, 0.12, 0.025, 0.6) * 0.7, 0)
-        place(b, marimba(f, 0.7), 0.005, 0.8)
-        place(b, bell(f * 2, 0.8, bright=0.5), 0.01, 0.18)
-        out.append(write(name, finish(reverb(b, 0.18), -4)))
-
-    # 3 stars: quick rising bell sparkle under the confetti shower.
-    b = buf(1.2)
-    for i, f in enumerate((C7, D7, E7, G7, C7 * 2, E7 * 1.5)):
-        place(b, bell(f * 0.5, 0.6, bright=0.4, decay=0.6), i * 0.06, 0.3)
-    out.append(write("sparkle", finish(reverb(b, 0.3, 1.2, 0.5), -8)))
-
-    # Vault level jackpot: coin fountain.
-    b = buf(1.8)
-    pitches = (C7, D7, E7, G7)
-    for i in range(20):
-        at = 0.04 * i + rng.uniform(0, 0.025)
-        place(b, ching(pitches[rng.integers(0, 4)] * rng.uniform(0.98, 1.03), 0.45), at, 0.5 * (1 - i / 30))
-    place(b, bell(C6, 1.4, bright=0.7), 0, 0.3)
-    place(b, bell(G6, 1.4, bright=0.7), 0.02, 0.25)
-    out.append(write("jackpot", finish(reverb(b, 0.2), -3)))
-
     # Safecracker: the tumbler catch, a deeper, heavier click than a dial tick.
     b = buf(0.25)
     place(b, click(980, 0.12, 110, level=1.0, noise=0.6), 0)
     place(b, thump(95, 0.16, 0.035, 0.7), 0.004, 0.8)
     out.append(write("tumbler", finish(b, -3)))
-
-    # Safecracker: the safe door swinging open (latch, hinge creak, low boom).
-    b = buf(1.4)
-    place(b, clunk(65, (380, 1050), 0.35, heavy=2.0), 0)
-    t = tt(0.7)
-    creak = band(rng.standard_normal(len(t)), 500, 1600) * (0.5 + 0.5 * np.sin(2 * np.pi * (9 + 6 * t) * t)) * np.exp(-((t - 0.3) / 0.22) ** 2)
-    place(b, creak, 0.12, 0.35)
-    place(b, thump(48, 0.6, 0.18, 0.3), 0.55, 0.9)
-    out.append(write("safeopen", finish(reverb(b, 0.25, 1.2, 0.5), -2)))
-
     return out
 
 
