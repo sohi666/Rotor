@@ -1,23 +1,40 @@
-import React, { useEffect } from 'react';
-import { BackHandler, Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import Animated, { Easing, FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
-import { C, F, PIN_COLORS, PIN_RIMS, SPACE, T } from '../theme';
-import { buzz, play } from '../feedback';
+import React, { useEffect } from "react";
+import {
+  BackHandler,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeInDown,
+  FadeOut,
+  SlideInDown,
+  ZoomIn,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { C, F, PIN_COLORS, PIN_RIMS, SPACE, T } from "../theme";
+import { buzz, play } from "../feedback";
 
-type IconName = React.ComponentProps<typeof Ionicons>['name'];
+type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
 export function Txt({
   children,
   style,
-  variant = 'body',
+  variant = "body",
   color,
   numberOfLines,
   center,
 }: {
   children: React.ReactNode;
   style?: StyleProp<TextStyle>;
-  variant?: 'hero' | 'title' | 'heading' | 'body' | 'small' | 'tiny' | 'number';
+  variant?: "hero" | "title" | "heading" | "body" | "small" | "tiny" | "number";
   color?: string;
   numberOfLines?: number;
   center?: boolean;
@@ -25,7 +42,12 @@ export function Txt({
   return (
     <Text
       numberOfLines={numberOfLines}
-      style={[styles[variant], color ? { color } : null, center ? { textAlign: 'center' } : null, style]}
+      style={[
+        styles[variant],
+        color ? { color } : null,
+        center ? { textAlign: "center" } : null,
+        style,
+      ]}
       maxFontSizeMultiplier={1.4}
     >
       {children}
@@ -36,7 +58,7 @@ export function Txt({
 export function Button({
   label,
   onPress,
-  kind = 'primary',
+  kind = "primary",
   icon,
   sublabel,
   disabled,
@@ -45,14 +67,14 @@ export function Button({
 }: {
   label: string;
   onPress: () => void;
-  kind?: 'primary' | 'secondary' | 'quiet';
+  kind?: "primary" | "secondary" | "quiet";
   icon?: IconName;
   sublabel?: string;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityHint?: string;
 }) {
-  const fg = kind === 'primary' ? C.ink : C.ivory;
+  const fg = kind === "primary" ? C.ink : C.ivory;
   return (
     <Pressable
       accessibilityRole="button"
@@ -61,27 +83,40 @@ export function Button({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={() => {
-        play('tap', 0.5);
+        play("tap", 0.5);
         buzz.tap();
         onPress();
       }}
       style={({ pressed }) => [
         styles.button,
-        kind === 'primary' && styles.buttonPrimary,
-        kind === 'secondary' && styles.buttonSecondary,
-        kind === 'quiet' && styles.buttonQuiet,
+        kind === "primary" && styles.buttonPrimary,
+        kind === "secondary" && styles.buttonSecondary,
+        kind === "quiet" && styles.buttonQuiet,
         pressed && { transform: [{ scale: 0.97 }], opacity: 0.92 },
         disabled && { opacity: 0.45 },
         style,
       ]}
     >
-      {icon && <Ionicons name={icon} size={20} color={fg} style={{ marginRight: SPACE.s }} />}
-      <View style={{ alignItems: icon ? 'flex-start' : 'center' }}>
-        <Text style={[styles.buttonLabel, { color: fg }]} maxFontSizeMultiplier={1.3}>
+      {icon && (
+        <Ionicons
+          name={icon}
+          size={20}
+          color={fg}
+          style={{ marginRight: SPACE.s }}
+        />
+      )}
+      <View style={{ alignItems: icon ? "flex-start" : "center" }}>
+        <Text
+          style={[styles.buttonLabel, { color: fg }]}
+          maxFontSizeMultiplier={1.3}
+        >
           {label}
         </Text>
         {sublabel ? (
-          <Text style={[styles.buttonSub, { color: fg }]} maxFontSizeMultiplier={1.3}>
+          <Text
+            style={[styles.buttonSub, { color: fg }]}
+            maxFontSizeMultiplier={1.3}
+          >
             {sublabel}
           </Text>
         ) : null}
@@ -113,11 +148,15 @@ export function IconButton({
       disabled={disabled}
       hitSlop={10}
       onPress={() => {
-        play('tap', 0.5);
+        play("tap", 0.5);
         buzz.tap();
         onPress();
       }}
-      style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.6 }, disabled && { opacity: 0.35 }]}
+      style={({ pressed }) => [
+        styles.iconButton,
+        pressed && { opacity: 0.6 },
+        disabled && { opacity: 0.35 },
+      ]}
     >
       <Ionicons name={icon} size={size} color={C.ivory} />
       <Text style={styles.iconLabel} maxFontSizeMultiplier={1.2}>
@@ -132,9 +171,21 @@ export function IconButton({
   );
 }
 
-export function Coins({ value, onPress }: { value: number; onPress?: () => void }) {
+export function Coins({
+  value,
+  onPress,
+}: {
+  value: number;
+  onPress?: () => void;
+}) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${value}`} style={styles.coins} hitSlop={8}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${value}`}
+      style={styles.coins}
+      hitSlop={8}
+    >
       <View style={styles.coinDot}>
         <View style={styles.coinInner} />
       </View>
@@ -144,9 +195,21 @@ export function Coins({ value, onPress }: { value: number; onPress?: () => void 
 }
 
 /** Three enamel pins that fill in like stars. */
-export function Stars({ value, size = 22, gap = 8 }: { value: number; size?: number; gap?: number }) {
+export function Stars({
+  value,
+  size = 22,
+  gap = 8,
+}: {
+  value: number;
+  size?: number;
+  gap?: number;
+}) {
   return (
-    <View style={{ flexDirection: 'row', gap }} accessible accessibilityLabel={`${value}/3`}>
+    <View
+      style={{ flexDirection: "row", gap }}
+      accessible
+      accessibilityLabel={`${value}/3`}
+    >
       {[0, 1, 2].map((i) => (
         <View
           key={i}
@@ -154,7 +217,8 @@ export function Stars({ value, size = 22, gap = 8 }: { value: number; size?: num
             width: size,
             height: size,
             borderRadius: size / 2,
-            backgroundColor: i < value ? PIN_COLORS[[0, 1, 2][i]] : 'transparent',
+            backgroundColor:
+              i < value ? PIN_COLORS[[0, 1, 2][i]] : "transparent",
             borderWidth: 2,
             borderColor: i < value ? PIN_RIMS[[0, 1, 2][i]] : C.petrolLine,
           }}
@@ -171,8 +235,20 @@ export function Stars({ value, size = 22, gap = 8 }: { value: number; size?: num
  * the OS asks for reduced motion.
  */
 const settle = Easing.out(Easing.cubic);
-export const cardEnter = FadeInDown.duration(280).easing(settle).withInitialValues({ transform: [{ translateY: 14 }] });
-export const bannerEnter = FadeInDown.duration(220).easing(settle).withInitialValues({ transform: [{ translateY: 8 }] });
+export const cardEnter = FadeInDown.duration(280)
+  .easing(settle)
+  .withInitialValues({ transform: [{ translateY: 14 }] });
+export const bannerEnter = FadeInDown.duration(220)
+  .easing(settle)
+  .withInitialValues({ transform: [{ translateY: 8 }] });
+/** Bottom panel: slides up from the bottom edge, decelerating, no overshoot. */
+export const panelEnter = SlideInDown.duration(340).easing(settle);
+/** Star stamp: drops from 1.35x to its size in 220 ms. A factory, because builder methods mutate the instance. */
+const stampIn = (delay: number) =>
+  ZoomIn.delay(delay)
+    .duration(220)
+    .easing(settle)
+    .withInitialValues({ transform: [{ scale: 1.35 }] });
 
 /**
  * Centered card over a dimmed screen. Rendered in-screen rather than as a native <Modal>:
@@ -184,15 +260,19 @@ export function Sheet({
   visible,
   onClose,
   children,
+  placement = "center",
 }: {
   visible: boolean;
   onClose?: () => void;
   children: React.ReactNode;
+  /** 'bottom' = anchored panel that slides up from the bottom edge, with a lighter dim. */
+  placement?: "center" | "bottom";
 }) {
+  const insets = useSafeAreaInsets();
   // Android back closes a dismissible sheet instead of leaving the screen.
   useEffect(() => {
     if (!visible || !onClose) return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       onClose();
       return true;
     });
@@ -200,31 +280,130 @@ export function Sheet({
   }, [visible, onClose]);
 
   if (!visible) return null;
+  const bottom = placement === "bottom";
   return (
-    <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(140)} style={styles.overlay} accessibilityViewIsModal>
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessible={false} />
-      <Animated.View entering={cardEnter} style={styles.sheet}>
+    <Animated.View
+      entering={FadeIn.duration(bottom ? 260 : 180)}
+      exiting={FadeOut.duration(140)}
+      style={[styles.overlay, bottom && styles.overlayBottom]}
+      accessibilityViewIsModal
+    >
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={onClose}
+        accessible={false}
+      />
+      <Animated.View
+        entering={bottom ? panelEnter : cardEnter}
+        style={[
+          styles.sheet,
+          bottom && [styles.panel, { paddingBottom: insets.bottom + SPACE.l }],
+        ]}
+      >
         {children}
       </Animated.View>
     </Animated.View>
   );
 }
 
+/** Earned pins drop in one after another with a short "stamp" (no bounce); the rest are shown empty. */
+export function StampStars({
+  value,
+  size = 34,
+  gap = 14,
+  delay = 300,
+  step = 200,
+}: {
+  value: number;
+  size?: number;
+  gap?: number;
+  delay?: number;
+  step?: number;
+}) {
+  return (
+    <View
+      style={{ flexDirection: "row", gap }}
+      accessible
+      accessibilityLabel={`${value}/3`}
+    >
+      {[0, 1, 2].map((i) => {
+        const empty = (
+          <View
+            style={{
+              width: size,
+              height: size,
+              borderRadius: size / 2,
+              borderWidth: 2,
+              borderColor: C.petrolLine,
+            }}
+          />
+        );
+        if (i >= value) return <View key={i}>{empty}</View>;
+        const d = delay + i * step;
+        return (
+          <View key={i}>
+            {empty}
+            <Animated.View
+              entering={FadeIn.delay(d).duration(90)}
+              style={[
+                StyleSheet.absoluteFill,
+                { alignItems: "center", justifyContent: "center" },
+              ]}
+            >
+              <Animated.View
+                entering={stampIn(d)}
+                style={{
+                  width: size,
+                  height: size,
+                  borderRadius: size / 2,
+                  backgroundColor: PIN_COLORS[i],
+                  borderWidth: 2,
+                  borderColor: PIN_RIMS[i],
+                }}
+              />
+            </Animated.View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 export function Toast({ text }: { text: string | null }) {
   if (!text) return null;
   return (
-    <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.toast} pointerEvents="none">
+    <Animated.View
+      entering={FadeIn}
+      exiting={FadeOut}
+      style={styles.toast}
+      pointerEvents="none"
+    >
       <Text style={styles.toastText}>{text}</Text>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  hero: { fontFamily: F.display, fontSize: T.hero, color: C.ivory, letterSpacing: -0.5 },
-  title: { fontFamily: F.display, fontSize: T.title, color: C.ivory, letterSpacing: -0.3 },
+  hero: {
+    fontFamily: F.display,
+    fontSize: T.hero,
+    color: C.ivory,
+    letterSpacing: -0.5,
+  },
+  title: {
+    fontFamily: F.display,
+    fontSize: T.title,
+    color: C.ivory,
+    letterSpacing: -0.3,
+  },
   heading: { fontFamily: F.uiBold, fontSize: T.heading, color: C.ivory },
   body: { fontFamily: F.ui, fontSize: T.body, color: C.ivory, lineHeight: 23 },
-  small: { fontFamily: F.ui, fontSize: T.small, color: C.ivoryDim, lineHeight: 20 },
+  small: {
+    fontFamily: F.ui,
+    fontSize: T.small,
+    color: C.ivoryDim,
+    lineHeight: 20,
+  },
   tiny: { fontFamily: F.uiSemi, fontSize: T.tiny, color: C.ivoryDim },
   number: { fontFamily: F.displayMedium, fontSize: T.heading, color: C.ivory },
   button: {
@@ -232,37 +411,51 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     paddingHorizontal: SPACE.xl,
     paddingVertical: SPACE.m,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonPrimary: {
     backgroundColor: C.brass,
     borderBottomWidth: 3,
     borderBottomColor: C.brassDeep,
   },
-  buttonSecondary: { borderWidth: 2, borderColor: C.petrolLine, backgroundColor: C.petrolDeep },
-  buttonQuiet: { backgroundColor: 'transparent' },
+  buttonSecondary: {
+    borderWidth: 2,
+    borderColor: C.petrolLine,
+    backgroundColor: C.petrolDeep,
+  },
+  buttonQuiet: { backgroundColor: "transparent" },
   buttonLabel: { fontFamily: F.uiBold, fontSize: 17 },
   buttonSub: { fontFamily: F.ui, fontSize: 13, opacity: 0.8, marginTop: 1 },
-  iconButton: { alignItems: 'center', justifyContent: 'center', minWidth: 64, paddingVertical: SPACE.xs },
-  iconLabel: { fontFamily: F.uiSemi, fontSize: 12, color: C.ivoryDim, marginTop: 2 },
+  iconButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 64,
+    paddingVertical: SPACE.xs,
+  },
+  iconLabel: {
+    fontFamily: F.uiSemi,
+    fontSize: 12,
+    color: C.ivoryDim,
+    marginTop: 2,
+  },
   badge: {
-    position: 'absolute',
+    position: "absolute",
     top: -2,
     right: 10,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
     backgroundColor: C.brass,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 4,
   },
   badgeText: { fontFamily: F.uiBold, fontSize: 11, color: C.ink },
   coins: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: C.petrolDeep,
     borderRadius: 16,
     paddingLeft: 6,
@@ -274,14 +467,20 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     backgroundColor: C.brass,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 6,
   },
-  coinInner: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: C.brassDeep },
+  coinInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: C.brassDeep,
+  },
   coinText: { fontFamily: F.displayMedium, fontSize: 14, color: C.ivory },
   overlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     right: 0,
     bottom: 0,
@@ -289,12 +488,24 @@ const styles = StyleSheet.create({
     zIndex: 20,
     elevation: 20,
     backgroundColor: C.scrim,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: SPACE.xl,
   },
+  overlayBottom: {
+    justifyContent: "flex-end",
+    padding: 0,
+    backgroundColor: "rgba(6, 34, 37, 0.35)",
+  },
+  panel: {
+    maxWidth: 560,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomWidth: 0,
+    paddingTop: SPACE.l,
+  },
   sheet: {
-    width: '100%',
+    width: "100%",
     maxWidth: 420,
     backgroundColor: C.petrol,
     borderRadius: 28,
@@ -303,9 +514,9 @@ const styles = StyleSheet.create({
     borderColor: C.petrolLine,
   },
   toast: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 120,
-    alignSelf: 'center',
+    alignSelf: "center",
     backgroundColor: C.ivory,
     borderRadius: 20,
     paddingHorizontal: SPACE.l,

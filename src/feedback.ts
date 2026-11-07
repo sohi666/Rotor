@@ -13,9 +13,19 @@ const SOURCES = {
   deny: [require('../assets/sfx/deny.wav')],
   tap: [require('../assets/sfx/tap.wav')],
   key: [require('../assets/sfx/key.wav')],
+  ratchet: [require('../assets/sfx/ratchet.wav')],
+  coin1: [require('../assets/sfx/coin1.wav')],
+  coin2: [require('../assets/sfx/coin2.wav')],
+  coin3: [require('../assets/sfx/coin3.wav')],
+  coin4: [require('../assets/sfx/coin4.wav')],
+  star1: [require('../assets/sfx/star1.wav')],
+  star2: [require('../assets/sfx/star2.wav')],
+  star3: [require('../assets/sfx/star3.wav')],
+  sparkle: [require('../assets/sfx/sparkle.wav')],
+  jackpot: [require('../assets/sfx/jackpot.wav')],
 } as const;
 
-type Sfx = keyof typeof SOURCES;
+export type Sfx = keyof typeof SOURCES;
 
 const pools = new Map<Sfx, AudioPlayer[]>();
 const cursor = new Map<Sfx, number>();
@@ -34,7 +44,7 @@ export async function initAudio(): Promise<void> {
 function pool(name: Sfx): AudioPlayer[] {
   let p = pools.get(name);
   if (!p) {
-    const copies = name === 'notch' ? 2 : 1;
+    const copies = name === 'notch' || name.startsWith('coin') ? 2 : 1;
     p = [];
     for (const src of SOURCES[name]) for (let i = 0; i < copies; i++) p.push(createAudioPlayer(src));
     pools.set(name, p);
@@ -57,9 +67,9 @@ export function play(name: Sfx, volume = 1): void {
   }
 }
 
-/** Preload the sounds used mid-gesture so the first notch has no latency. */
+/** Preload every sound so the first notch and the celebration have no latency. */
 export function warmUp(): void {
-  (['notch', 'unlock', 'combo2', 'combo3', 'win', 'deny', 'key'] as Sfx[]).forEach((n) => {
+  (Object.keys(SOURCES) as Sfx[]).forEach((n) => {
     try {
       pool(n);
     } catch {
