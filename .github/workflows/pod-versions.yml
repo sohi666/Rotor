@@ -1,0 +1,27 @@
+name: CocoaPods versions
+
+# Diagnostic: lists the versions of a pod published on the CocoaPods trunk CDN.
+on:
+  workflow_dispatch:
+    inputs:
+      pod:
+        description: Pod name
+        required: true
+        default: PurchasesHybridCommon
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: List versions
+        env:
+          POD: ${{ inputs.pod }}
+        run: |
+          h="$(printf '%s' "$POD" | md5sum | cut -c1-3)"
+          shard="${h:0:1}_${h:1:1}_${h:2:1}"
+          curl -fsSL "https://cdn.cocoapods.org/all_pods_versions_${shard}.txt" | grep "^${POD}/" | tr '/' '\n' | tail -n 40
