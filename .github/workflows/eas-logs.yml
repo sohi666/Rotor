@@ -22,6 +22,9 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
+          cache: npm
+      - name: Install
+        run: npm ci
       - uses: expo/expo-github-action@v8
         with:
           eas-version: '27.4.1'
