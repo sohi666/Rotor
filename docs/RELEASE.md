@@ -2,15 +2,14 @@
 
 How **Rotor: Daily Lock** (`com.behtoyi.rotor`, Consultation Behtoyi Inc.) gets from a git tag to the App Store and Google Play, what you (the human) must do once, and what each push notification asks of you.
 
-Everything runs in GitHub Actions. Native builds run on EAS cloud workers (macOS for iOS). Nothing needs a Mac on your side.
+Everything runs in GitHub Actions. iOS builds run on EAS cloud macOS workers; Android builds run on the GitHub runner itself with `eas build --local` (the EAS free-tier Android workers stalled and hit their 45-minute cap). Nothing needs a Mac on your side.
 
 ```
 tag v1.2.3 / "Run workflow"
   └─ prepare ── checks secrets, tag == app.json version
-      └─ build ── tsc, vitest, verify:levels, metadata lint ── eas build (production, remote build numbers)
-          ├─ submit-ios ───── eas submit → TestFlight ── store URLs live? ── fastlane deliver → App Review
-          └─ submit-android ─ .aab attached to the run ── eas submit → Play track (sent to review)
-store-status (every 30 min) ── App Store Connect + Play API → ntfy push on every change
+      └─ gate ── tsc, vitest, verify:levels, metadata lint
+          ├─ build (iOS) ──────── eas build on EAS cloud macOS ── submit-ios ── eas submit → TestFlight ── store URLs live? ── fastlane deliver → App Review
+          └─ build-android ────── eas build --local on ubuntu-latest (.aab attached to the run) ── submit-android ── eas submit --path → Play track
 ```
 
 Workflows: `.github/workflows/ci.yml` (every push/PR), `release.yml`, `store-status.yml`.
@@ -178,7 +177,7 @@ Priorities: `low` (2), `default` (3), `high` (4), `urgent` (5). Anything that ne
 | **Rotor release cannot start** | A secret is missing or the tag ≠ `app.json` version. The message names it. |
 | **store release with test config** | Non-blocking warning for review/production runs. `app.json` still has Google's sample AdMob IDs, `extra.ads.useTestIds: true` or empty RevenueCat keys. Put the real IDs in and release again before going live. |
 | **iOS signing credentials** | Run `npx eas-cli@latest credentials -p ios` → production → set up (step 11). Optionally set `APPLE_TEAM_ID`. |
-| **EAS build quota** | Free plan used up (15 iOS + 15 Android per month). Wait for the reset or upgrade. |
+| **EAS build quota** | Free plan used up (15 iOS builds per month; Android builds on the GitHub runner and does not count). Wait for the reset or upgrade. |
 | **EAS project link** / **Expo token** | Run `eas init` and commit `app.json` / renew `EXPO_TOKEN`. |
 | **first Android upload is manual** | Download the .aab (button; GitHub login, kept 14 days) → Play Console → Internal testing → Create new release → upload → Save and publish. |
 | **Play app is still a draft** | Re-run with `android_track=internal`, `android_release_status=draft`; finish the Dashboard tasks; publish there. |
