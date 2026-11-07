@@ -34,7 +34,7 @@ jobs:
         env:
           BUILD_ID: ${{ inputs.build_id }}
         run: |
-          set -uo pipefail
+          set -u +e
           eas build:view "$BUILD_ID" --json > build.json || { echo "build:view failed"; exit 1; }
           jq '{platform, status, error, appVersion, appBuildVersion, sdkVersion, runtimeVersion, createdAt, completedAt, initiatingActor: .initiatingActor.displayName, cancelingActor: .cancelingActor.displayName}' build.json
           i=0
@@ -45,7 +45,7 @@ jobs:
             # EAS logs are JSON lines; print phase + message.
             jq -r 'select(.msg != null) | "\(.phase // "-") | \(.msg)"' "log$i.txt" 2>/dev/null > "plain$i.txt" || cp "log$i.txt" "plain$i.txt"
             echo "---- error-looking lines ----"
-            grep -n -iE "error|failed|fatal|exception|❌|denied|invalid" "plain$i.txt" | grep -v -iE "0 error|warning: " | head -80
+            grep -n -iE "error|failed|fatal|exception|❌|denied|invalid|conflict|could not|pod |cocoapods|depend|requires|timeout|timed out" "plain$i.txt" | grep -v -iE "0 error|warning: " | head -120 || true
             echo "---- last 120 lines ----"
-            tail -n 120 "plain$i.txt"
+            tail -n 120 "plain$i.txt" || true
           done
