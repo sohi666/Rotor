@@ -1,0 +1,48 @@
+name: EAS build logs
+
+# Diagnostic: prints an EAS build's status, error and the tail of its native logs
+# into this job's log, so failures can be read without opening expo.dev.
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: EAS build ID (from the expo.dev build URL)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  logs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: '27.4.1'
+          token: ${{ secrets.EXPO_TOKEN }}
+          packager: npm
+      - name: Build summary and logs
+        env:
+          BUILD_ID: ${{ inputs.build_id }}
+        run: |
+          set -uo pipefail
+          eas build:view "$BUILD_ID" --json > build.json || { echo "build:view failed"; exit 1; }
+          jq '{platform, status, error, appVersion, appBuildVersion, sdkVersion, runtimeVersion, createdAt, completedAt, initiatingActor: .initiatingActor.displayName, cancelingActor: .cancelingActor.displayName}' build.json
+          i=0
+          for url in $(jq -r '.logFiles[]? // empty' build.json); do
+            i=$((i+1))
+            curl -sSL "$url" -o "log$i.txt" || continue
+            echo "================ log file $i ($(wc -l < log$i.txt) lines) ================"
+            # EAS logs are JSON lines; print phase + message.
+            jq -r 'select(.msg != null) | "\(.phase // "-") | \(.msg)"' "log$i.txt" 2>/dev/null > "plain$i.txt" || cp "log$i.txt" "plain$i.txt"
+            echo "---- error-looking lines ----"
+            grep -n -iE "error|failed|fatal|exception|❌|denied|invalid" "plain$i.txt" | grep -v -iE "0 error|warning: " | head -80
+            echo "---- last 120 lines ----"
+            tail -n 120 "plain$i.txt"
+          done

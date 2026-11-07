@@ -82,7 +82,7 @@ write_asc_build_env() {
   export_env EXPO_ASC_KEY_ID "$ASC_KEY_ID"
   export_env EXPO_ASC_ISSUER_ID "$ASC_ISSUER_ID"
   export_env EXPO_APPLE_TEAM_ID "$APPLE_TEAM_ID"
-  export_env EXPO_APPLE_TEAM_TYPE "COMPANY_OR_ORGANIZATION"
+  export_env EXPO_APPLE_TEAM_TYPE "${APPLE_TEAM_TYPE:-INDIVIDUAL}" # INDIVIDUAL | COMPANY_OR_ORGANIZATION | IN_HOUSE
 }
 
 write_google() {
