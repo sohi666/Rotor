@@ -1,19 +1,9 @@
-import React, { useMemo } from "react";
-import { StyleSheet, View } from "react-native";
-import {
-  Canvas,
-  PaintStyle,
-  Picture,
-  Skia,
-  TileMode,
-  useClock,
-  vec,
-  type SkPaint,
-  type SkRect,
-} from "@shopify/react-native-skia";
-import { useDerivedValue } from "react-native-reanimated";
-import { mulberry32 } from "../engine/rng";
-import { C, PIN_COLORS } from "../theme";
+import React, { useMemo } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Canvas, PaintStyle, Picture, Skia, TileMode, useClock, vec, type SkPaint, type SkRect } from '@shopify/react-native-skia';
+import { useDerivedValue } from 'react-native-reanimated';
+import { mulberry32 } from '../engine/rng';
+import { C, PIN_COLORS } from '../theme';
 
 /**
  * Level-complete celebration, drawn over the whole game screen (touches pass through).
@@ -27,7 +17,7 @@ import { C, PIN_COLORS } from "../theme";
  * one SkPicture per frame. The parent unmounts it after `celebrationLength()`.
  * Timings here are mirrored by the sound/haptic schedule in GameScreen.
  */
-export type CelebrationTier = "normal" | "perfect" | "vault";
+export type CelebrationTier = 'normal' | 'perfect' | 'vault';
 
 export interface CelebrationSpec {
   id: number;
@@ -50,17 +40,12 @@ export const CELEBRATION = {
 
 /** Seconds after mount at which coin i lands in the counter. */
 export function coinArrival(i: number): number {
-  return (
-    CELEBRATION.coinsStart + i * CELEBRATION.coinGap + CELEBRATION.coinFlight
-  );
+  return CELEBRATION.coinsStart + i * CELEBRATION.coinGap + CELEBRATION.coinFlight;
 }
 
-export function celebrationLength(
-  tier: CelebrationTier,
-  coins: number,
-): number {
+export function celebrationLength(tier: CelebrationTier, coins: number): number {
   const coinsEnd = coins > 0 ? coinArrival(coins - 1) + 0.3 : 0;
-  const base = tier === "perfect" ? 3.0 : tier === "vault" ? 2.8 : 2.1;
+  const base = tier === 'perfect' ? 3.0 : tier === 'vault' ? 2.8 : 2.1;
   return Math.max(base, coinsEnd);
 }
 
@@ -120,7 +105,7 @@ export function Celebration({ spec }: { spec: CelebrationSpec }) {
 
     // Confetti bursting out of the dial.
     const burst: Piece[] = [];
-    const nBurst = tier === "normal" ? 46 : 64;
+    const nBurst = tier === 'normal' ? 46 : 64;
     for (let i = 0; i < nBurst; i++) {
       const a = rnd() * Math.PI * 2;
       const sp = (420 + rnd() * 620) * sc;
@@ -146,7 +131,7 @@ export function Celebration({ spec }: { spec: CelebrationSpec }) {
 
     // 3 stars and vaults: a shower from the top.
     const shower: Piece[] = [];
-    if (tier !== "normal") {
+    if (tier !== 'normal') {
       for (let i = 0; i < 80; i++) {
         const w = (8 + rnd() * 7) * sc;
         const h = w * (0.45 + rnd() * 0.3);
@@ -187,7 +172,7 @@ export function Celebration({ spec }: { spec: CelebrationSpec }) {
 
     // Vault: coin fountain.
     const fountain: Drop[] = [];
-    if (tier === "vault") {
+    if (tier === 'vault') {
       for (let i = 0; i < 28; i++) {
         fountain.push({
           x0: origin.x + (rnd() - 0.5) * r * 0.3,
@@ -226,31 +211,17 @@ export function Celebration({ spec }: { spec: CelebrationSpec }) {
     const rayPaint = Skia.Paint();
     rayPaint.setAntiAlias(true);
     rayPaint.setShader(
-      Skia.Shader.MakeRadialGradient(
-        vec(0, 0),
-        r * 2.6,
-        [hexAlpha(C.brassLight, 0.55), hexAlpha(C.brassLight, 0)],
-        null,
-        TileMode.Clamp,
-      ),
+      Skia.Shader.MakeRadialGradient(vec(0, 0), r * 2.6, [hexAlpha(C.brassLight, 0.55), hexAlpha(C.brassLight, 0)], null, TileMode.Clamp),
     );
     const glow = Skia.Paint();
     glow.setAntiAlias(true);
-    glow.setShader(
-      Skia.Shader.MakeRadialGradient(
-        vec(0, 0),
-        r * 0.75,
-        [hexAlpha("#FFF4D6", 0.9), hexAlpha(C.brassLight, 0)],
-        null,
-        TileMode.Clamp,
-      ),
-    );
+    glow.setShader(Skia.Shader.MakeRadialGradient(vec(0, 0), r * 0.75, [hexAlpha('#FFF4D6', 0.9), hexAlpha(C.brassLight, 0)], null, TileMode.Clamp));
     const wave = paint(C.brassLight);
     wave.setStyle(PaintStyle.Stroke);
     const coinRim = paint(C.brassDeep);
     const coinFace = paint(C.brass);
-    const coinShine = paint("#FFF1C9");
-    const spark = paint("#FFF1C9");
+    const coinShine = paint('#FFF1C9');
+    const spark = paint('#FFF1C9');
     spark.setStyle(PaintStyle.Stroke);
 
     return {
@@ -268,19 +239,7 @@ export function Celebration({ spec }: { spec: CelebrationSpec }) {
       coinShine,
       spark,
     };
-  }, [
-    spec.id,
-    spec.coins,
-    tier,
-    origin.x,
-    origin.y,
-    origin.r,
-    target.x,
-    target.y,
-    width,
-    height,
-    sc,
-  ]);
+  }, [spec.id, spec.coins, tier, origin.x, origin.y, origin.r, target.x, target.y, width, height, sc]);
 
   const picture = useDerivedValue(() => {
     const t = clock.value / 1000;
@@ -291,29 +250,11 @@ export function Celebration({ spec }: { spec: CelebrationSpec }) {
     const oy = origin.y;
     const r = origin.r;
 
-    const fade = (
-      x: number,
-      inEnd: number,
-      outStart: number,
-      outEnd: number,
-    ) =>
-      x <= 0
-        ? 0
-        : x < inEnd
-          ? x / inEnd
-          : x < outStart
-            ? 1
-            : x < outEnd
-              ? 1 - (x - outStart) / (outEnd - outStart)
-              : 0;
+    const fade = (x: number, inEnd: number, outStart: number, outEnd: number) =>
+      x <= 0 ? 0 : x < inEnd ? x / inEnd : x < outStart ? 1 : x < outEnd ? 1 - (x - outStart) / (outEnd - outStart) : 0;
 
     // Rays, slowly turning.
-    const ra = fade(
-      t,
-      0.18,
-      tier === "normal" ? 0.9 : 1.3,
-      tier === "normal" ? 1.6 : 2.2,
-    );
+    const ra = fade(t, 0.18, tier === 'normal' ? 0.9 : 1.3, tier === 'normal' ? 1.6 : 2.2);
     if (ra > 0) {
       a.rayPaint.setAlphaf(ra * 0.75);
       cv.save();

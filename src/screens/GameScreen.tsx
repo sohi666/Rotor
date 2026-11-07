@@ -1,46 +1,17 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import {
-  AccessibilityInfo,
-  Platform,
-  Pressable,
-  Share,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, { FadeOut, useReducedMotion } from "react-native-reanimated";
-import * as Clipboard from "expo-clipboard";
-import { Ionicons } from "@expo/vector-icons";
-import { Board, HUB_POP_MS } from "../game/Board";
-import {
-  Celebration,
-  celebrationLength,
-  coinArrival,
-  type CelebrationSpec,
-  type CelebrationTier,
-} from "../game/Celebration";
-import { useGame } from "../game/useGame";
-import type { LevelDef } from "../engine/types";
-import { colorOf, cellAt, WILD, EMPTY, BOLT } from "../engine";
-import { C, F, PIN_NAMES_EN, PIN_NAMES_FR, SPACE } from "../theme";
-import {
-  Button,
-  Coins,
-  IconButton,
-  Sheet,
-  StampStars,
-  Toast,
-  Txt,
-  bannerEnter,
-} from "../ui/kit";
-import { buzz, notchFeedback, play, type Sfx } from "../feedback";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AccessibilityInfo, Platform, Pressable, Share, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeOut, useReducedMotion } from 'react-native-reanimated';
+import * as Clipboard from 'expo-clipboard';
+import { Ionicons } from '@expo/vector-icons';
+import { Board, HUB_POP_MS } from '../game/Board';
+import { Celebration, celebrationLength, coinArrival, type CelebrationSpec, type CelebrationTier } from '../game/Celebration';
+import { useGame } from '../game/useGame';
+import type { LevelDef } from '../engine/types';
+import { colorOf, cellAt, WILD, EMPTY, BOLT } from '../engine';
+import { C, F, PIN_NAMES_EN, PIN_NAMES_FR, SPACE } from '../theme';
+import { Button, Coins, IconButton, Sheet, StampStars, Toast, Txt, bannerEnter } from '../ui/kit';
+import { buzz, notchFeedback, play, type Sfx } from '../feedback';
 import {
   coinsFor,
   liveStreak,
@@ -54,18 +25,14 @@ import {
   update,
   consumeBooster,
   useProgress,
-} from "../state/store";
-import { useStrings } from "../useStrings";
-import {
-  adsAvailable,
-  maybeShowInterstitial,
-  showRewarded,
-} from "../services/ads";
-import { LINKS } from "../services/config";
-import { track } from "../services/analytics";
+} from '../state/store';
+import { useLang, useStrings } from '../useStrings';
+import { VAULT_SKINS, grantSkin, skinById, useSkin } from '../skins';
+import { adsAvailable, maybeShowInterstitial, showRewarded } from '../services/ads';
+import { LINKS } from '../services/config';
+import { track } from '../services/analytics';
 
-export type GameMode =
-  { kind: "campaign"; index: number } | { kind: "daily"; date: string };
+export type GameMode = { kind: 'campaign'; index: number } | { kind: 'daily'; date: string };
 
 interface Props {
   def: LevelDef;
@@ -81,9 +48,7 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const game = useGame(def);
-  const [showIntro, setShowIntro] = useState(
-    !!def.intro && !progress.seenIntros.includes(def.intro),
-  );
+  const [showIntro, setShowIntro] = useState(!!def.intro && !progress.seenIntros.includes(def.intro));
   const [winOpen, setWinOpen] = useState(false);
   const [reward, setReward] = useState<{
     stars: number;
@@ -97,6 +62,9 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
   const recorded = useRef(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduceMotion = useReducedMotion();
+  const skin = useSkin();
+  const lang = useLang();
+  const [wonSkin, setWonSkin] = useState<string | null>(null);
   // Celebration: board victory lap id, overlay spec, coins not yet "landed" in the counter.
   const [lap, setLap] = useState(0);
   const [celebration, setCelebration] = useState<CelebrationSpec | null>(null);
@@ -106,8 +74,8 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
   const boardRef = useRef<React.ComponentRef<typeof View>>(null);
   const coinsRef = useRef<React.ComponentRef<typeof View>>(null);
 
-  const isDaily = mode.kind === "daily";
-  const levelNumber = mode.kind === "campaign" ? mode.index + 1 : 0;
+  const isDaily = mode.kind === 'daily';
+  const levelNumber = mode.kind === 'campaign' ? mode.index + 1 : 0;
   const isVault = levelNumber > 0 && levelNumber % 10 === 0;
 
   const flash = useCallback((text: string) => {
@@ -117,19 +85,16 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
   }, []);
 
   useEffect(() => {
-    if (Platform.OS === "web") return;
+    if (Platform.OS === 'web') return;
     AccessibilityInfo.isScreenReaderEnabled()
       .then(setScreenReader)
       .catch(() => undefined);
-    const sub = AccessibilityInfo.addEventListener(
-      "screenReaderChanged",
-      setScreenReader,
-    );
+    const sub = AccessibilityInfo.addEventListener('screenReaderChanged', setScreenReader);
     return () => sub.remove();
   }, []);
 
   useEffect(() => {
-    track("level_start", { id: def.id });
+    track('level_start', { id: def.id });
   }, [def.id]);
 
   // Sound, haptics and combo banner for each unlock.
@@ -137,16 +102,13 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
     const ev = game.event;
     if (!ev) return;
     const n = ev.spokes.length;
-    if (n >= 3) play("combo3");
-    else if (n === 2) play("combo2");
-    else if (n === 1) play("unlock");
+    if (n >= 3) play('combo3');
+    else if (n === 2) play('combo2');
+    else if (n === 1) play('unlock');
     if (n) buzz.unlock(n);
-    if (ev.unlocked.length) setTimeout(() => play("key"), 220);
+    if (ev.unlocked.length) setTimeout(() => play('key'), 220);
     if (n >= 2) setCombo({ id: ev.id, n });
-    if (screenReader && n)
-      AccessibilityInfo.announceForAccessibility(
-        n >= 2 ? s.combo(n) : s.cleared,
-      );
+    if (screenReader && n) AccessibilityInfo.announceForAccessibility(n >= 2 ? s.combo(n) : s.cleared);
   }, [game.event, s, screenReader]);
 
   useEffect(() => {
@@ -185,11 +147,14 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
   //   then     coins arc into the counter, one rising "ching" each
   //   end      result card slides up. Tapping anywhere skips to the card.
   useEffect(() => {
-    if (game.status !== "won" || recorded.current) return;
+    if (game.status !== 'won' || recorded.current) return;
     recorded.current = true;
     let res: { stars: number; coins: number; streak?: number };
-    if (mode.kind === "campaign") {
+    if (mode.kind === 'campaign') {
       res = recordLevelWin(mode.index, def.id, game.turns, def.par);
+      // Each vault opens a Lockbox style, in a fixed order.
+      const vaultSkin = isVault ? VAULT_SKINS[levelNumber / 10 - 1] : undefined;
+      if (vaultSkin && grantSkin(vaultSkin)) setWonSkin(vaultSkin);
     } else {
       const r = recordDaily(mode.date, {
         turns: game.turns,
@@ -203,64 +168,49 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
         streak: r.streak,
       };
     }
-    track("level_win", { id: def.id, turns: game.turns, par: def.par });
+    track('level_win', { id: def.id, turns: game.turns, par: def.par });
     setReward(res);
     clearCelebration();
-    const at = (ms: number, fn: () => void) =>
-      celebTimers.current.push(setTimeout(fn, ms));
+    const at = (ms: number, fn: () => void) => celebTimers.current.push(setTimeout(fn, ms));
 
     if (reduceMotion) {
       at(450, () => {
-        play("win");
+        play('win');
         buzz.win();
         openResult(res.stars);
       });
       return;
     }
 
-    const tier: CelebrationTier = isVault
-      ? "vault"
-      : res.stars === 3
-        ? "perfect"
-        : "normal";
-    const sprites =
-      res.coins > 0 ? Math.min(6, Math.max(3, Math.round(res.coins / 5))) : 0;
+    const tier: CelebrationTier = isVault ? 'vault' : res.stars === 3 ? 'perfect' : 'normal';
+    const sprites = res.coins > 0 ? Math.min(6, Math.max(3, Math.round(res.coins / 5))) : 0;
     setCoinLag(res.coins);
     const LAP = 300;
     const POP = LAP + HUB_POP_MS;
 
     at(LAP, () => {
       setLap((n) => n + 1);
-      play("ratchet");
+      play('ratchet');
     });
     at(POP, () => {
-      play("win");
+      play('win');
       buzz.win();
-      if (tier === "vault") play("jackpot");
+      if (tier === 'vault') play('jackpot');
       measureCelebration(tier, sprites);
     });
-    if (tier === "perfect") at(POP + 180, () => play("sparkle"));
+    if (tier === 'perfect') at(POP + 180, () => play('sparkle'));
     // Coins land: rising chings, the counter catches up coin by coin.
     for (let i = 0; i < sprites; i++) {
-      const share =
-        Math.floor(res.coins / sprites) + (i < res.coins % sprites ? 1 : 0);
+      const share = Math.floor(res.coins / sprites) + (i < res.coins % sprites ? 1 : 0);
       at(POP + coinArrival(i) * 1000, () => {
         play(`coin${Math.min(i, 3) + 1}` as Sfx);
         buzz.notch();
         setCoinLag((l) => Math.max(0, l - share));
       });
     }
-    const end =
-      POP +
-      Math.min(
-        celebrationLength(tier, sprites),
-        sprites ? coinArrival(sprites - 1) + 0.35 : 1.3,
-      ) *
-        1000;
+    const end = POP + Math.min(celebrationLength(tier, sprites), sprites ? coinArrival(sprites - 1) + 0.35 : 1.3) * 1000;
     at(end, () => openResult(res.stars));
-    at(POP + celebrationLength(tier, sprites) * 1000, () =>
-      setCelebration(null),
-    );
+    at(POP + celebrationLength(tier, sprites) * 1000, () => setCelebration(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game.status, game.turns, game.clears, def, mode]);
 
@@ -287,9 +237,7 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
             height: rh,
           });
         if (!coins) return go(rw - 40, 30);
-        coins.measureInWindow((cx, cy, cw, ch) =>
-          go(cx - rx + Math.min(cw, ch) / 2 + 6, cy - ry + ch / 2),
-        );
+        coins.measureInWindow((cx, cy, cw, ch) => go(cx - rx + Math.min(cw, ch) / 2 + 6, cy - ry + ch / 2));
       });
     });
   };
@@ -301,7 +249,7 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
   };
 
   useEffect(() => {
-    if (game.status === "won") return;
+    if (game.status === 'won') return;
     recorded.current = false;
     clearCelebration();
     setCelebration(null);
@@ -310,31 +258,25 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
   }, [game.status, clearCelebration]);
 
   useEffect(() => {
-    if (game.status === "out") {
-      play("deny", 0.7);
-      track("level_out_of_turns", { id: def.id });
+    if (game.status === 'out') {
+      play('deny', 0.7);
+      track('level_out_of_turns', { id: def.id });
     }
-    if (game.status === "jammed") track("level_jammed", { id: def.id });
+    if (game.status === 'jammed') track('level_jammed', { id: def.id });
   }, [game.status, def.id]);
 
-  const boardSize = Math.min(
-    width - SPACE.l * 2,
-    height - insets.top - insets.bottom - 250,
-    width >= 700 ? 760 : 560,
-  );
-  const hubValue = game.limit
-    ? Math.max(0, game.limit - game.turns)
-    : game.turns;
+  const boardSize = Math.min(width - SPACE.l * 2, height - insets.top - insets.bottom - 250, width >= 700 ? 760 : 560);
+  const hubValue = game.limit ? Math.max(0, game.limit - game.turns) : game.turns;
   const freeUndo = def.budget === 0;
 
   const onUndo = () => {
     if (!game.canUndo) return;
-    if (freeUndo || consumeBooster("undo")) game.undo();
+    if (freeUndo || consumeBooster('undo')) game.undo();
     else flash(s.notEnough);
   };
   const onHint = () => {
-    if (game.status !== "playing") return;
-    if (!consumeBooster("hint")) {
+    if (game.status !== 'playing') return;
+    if (!consumeBooster('hint')) {
       flash(s.notEnough);
       return;
     }
@@ -349,7 +291,7 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
   };
 
   const onExtraTurnsAd = async () => {
-    const granted = await showRewarded("extra_turns");
+    const granted = await showRewarded('extra_turns');
     if (granted) game.addTurns(3);
   };
   const onExtraTurnsCoins = () => {
@@ -358,7 +300,7 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
   };
   const onDoubleCoins = async () => {
     if (!reward || reward.doubled) return;
-    const granted = await showRewarded("double_coins");
+    const granted = await showRewarded('double_coins');
     if (granted) {
       addCoins(reward.coins);
       setReward({ ...reward, coins: reward.coins * 2, doubled: true });
@@ -371,7 +313,7 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
     leaving.current = true;
     setWinOpen(false);
     try {
-      if (mode.kind === "campaign") await maybeShowInterstitial(levelNumber);
+      if (mode.kind === 'campaign') await maybeShowInterstitial(levelNumber);
     } catch {
       // An ad problem must never keep the player on this screen.
     } finally {
@@ -380,15 +322,13 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
   };
 
   const onShare = async () => {
-    if (mode.kind !== "daily") return;
-    const [y, m, d] = mode.date.split("-").map(Number);
-    const marks = game.clears
-      .map((n) => (n === 0 ? "⚪" : n === 1 ? "🟢" : "💥"))
-      .join("");
+    if (mode.kind !== 'daily') return;
+    const [y, m, d] = mode.date.split('-').map(Number);
+    const marks = game.clears.map((n) => (n === 0 ? '⚪' : n === 1 ? '🟢' : '💥')).join('');
     const streak = liveStreak(progress);
-    const text = `${s.shareText(s.dateLong(new Date(y, m - 1, d)), game.turns, def.par, streak)}\n${marks}${LINKS.share ? `\n${LINKS.share}` : ""}`;
-    track("daily_share", {});
-    if (Platform.OS === "web") {
+    const text = `${s.shareText(s.dateLong(new Date(y, m - 1, d)), game.turns, def.par, streak)}\n${marks}${LINKS.share ? `\n${LINKS.share}` : ''}`;
+    track('daily_share', {});
+    if (Platform.OS === 'web') {
       await Clipboard.setStringAsync(text);
       flash(s.copied);
     } else {
@@ -396,16 +336,10 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
     }
   };
 
-  const title = isDaily
-    ? s.daily
-    : isVault
-      ? s.vaultN(levelNumber / 10)
-      : s.levelN(levelNumber);
+  const title = isDaily ? s.daily : isVault ? s.vaultN(levelNumber / 10) : s.levelN(levelNumber);
   const subtitle = isDaily
     ? (() => {
-        const [y, m, d] = (mode as { date: string }).date
-          .split("-")
-          .map(Number);
+        const [y, m, d] = (mode as { date: string }).date.split('-').map(Number);
         return s.dateLong(new Date(y, m - 1, d));
       })()
     : isVault
@@ -414,22 +348,13 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
 
   const ringDescription = useCallback(
     (r: number) => {
-      const names =
-        progress.settings.lang === "en" ? PIN_NAMES_EN : PIN_NAMES_FR;
+      const names = progress.settings.lang === 'en' ? PIN_NAMES_EN : PIN_NAMES_FR;
       const parts: string[] = [];
       for (let p = 0; p < game.state.S; p++) {
         const v = cellAt(game.state, r, p);
-        parts.push(
-          v === EMPTY
-            ? "—"
-            : v === BOLT
-              ? "#"
-              : v === WILD
-                ? "*"
-                : names[colorOf(v)],
-        );
+        parts.push(v === EMPTY ? '—' : v === BOLT ? '#' : v === WILD ? '*' : names[colorOf(v)]);
       }
-      return parts.join(", ");
+      return parts.join(', ');
     },
     [game.state, progress.settings.lang],
   );
@@ -447,21 +372,11 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
       ]}
     >
       <View style={styles.header}>
-        <Pressable
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel={s.back}
-          hitSlop={12}
-          style={styles.back}
-        >
+        <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel={s.back} hitSlop={12} style={styles.back}>
           <Ionicons name="chevron-back" size={28} color={C.ivory} />
         </Pressable>
-        <View style={{ flex: 1, alignItems: "center" }}>
-          <Txt
-            variant="heading"
-            numberOfLines={1}
-            style={{ fontFamily: F.display, fontSize: isDaily ? 16 : 19 }}
-          >
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Txt variant="heading" numberOfLines={1} style={{ fontFamily: F.display, fontSize: isDaily ? 16 : 19 }}>
             {title}
           </Txt>
           {subtitle ? <Txt variant="tiny">{subtitle}</Txt> : null}
@@ -479,9 +394,7 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
         </View>
         <View style={styles.chip}>
           <Txt variant="tiny" color={C.ivory}>
-            {game.limit
-              ? `${Math.max(0, game.limit - game.turns)} ${s.turns.toLowerCase()} ${s.turnsLeft}`
-              : s.noLimit}
+            {game.limit ? `${Math.max(0, game.limit - game.turns)} ${s.turns.toLowerCase()} ${s.turnsLeft}` : s.noLimit}
           </Txt>
         </View>
       </View>
@@ -490,26 +403,21 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
         <View ref={boardRef} collapsable={false}>
           <Board
             celebrate={lap}
+            skin={skin}
             game={game}
             size={boardSize}
             symbols={progress.settings.symbols}
             hubValue={hubValue}
             onNotch={notchFeedback}
             onDeny={() => {
-              play("deny", 0.8);
+              play('deny', 0.8);
               buzz.deny();
             }}
             onTurnStart={game.clearHint}
           />
         </View>
         {combo && (
-          <Animated.View
-            key={combo.id}
-            entering={bannerEnter}
-            exiting={FadeOut.duration(200)}
-            style={styles.combo}
-            pointerEvents="none"
-          >
+          <Animated.View key={combo.id} entering={bannerEnter} exiting={FadeOut.duration(200)} style={styles.combo} pointerEvents="none">
             <Txt variant="title" color={C.brassLight} style={styles.comboText}>
               {s.combo(combo.n)}
             </Txt>
@@ -517,7 +425,7 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
         )}
       </View>
 
-      {game.status === "jammed" && (
+      {game.status === 'jammed' && (
         <View style={styles.banner} accessibilityLiveRegion="polite">
           <Txt variant="heading" color={C.ink}>
             {s.jammed}
@@ -532,24 +440,9 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
         <View style={styles.a11y}>
           {Array.from({ length: game.state.R }, (_, r) => (
             <View key={r} style={styles.a11yRow}>
-              <Txt
-                variant="small"
-                style={{ flex: 1 }}
-              >{`${r + 1}: ${ringDescription(r)}`}</Txt>
-              <IconButton
-                icon="arrow-undo"
-                label="−1"
-                onPress={() => game.commit(r, -1)}
-                disabled={!game.groupFor(r)}
-                size={20}
-              />
-              <IconButton
-                icon="arrow-redo"
-                label="+1"
-                onPress={() => game.commit(r, 1)}
-                disabled={!game.groupFor(r)}
-                size={20}
-              />
+              <Txt variant="small" style={{ flex: 1 }}>{`${r + 1}: ${ringDescription(r)}`}</Txt>
+              <IconButton icon="arrow-undo" label="−1" onPress={() => game.commit(r, -1)} disabled={!game.groupFor(r)} size={20} />
+              <IconButton icon="arrow-redo" label="+1" onPress={() => game.commit(r, 1)} disabled={!game.groupFor(r)} size={20} />
             </View>
           ))}
         </View>
@@ -563,17 +456,12 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
           disabled={!game.canUndo}
           badge={freeUndo ? undefined : progress.boosters.undo || PRICES.undo}
         />
-        <IconButton
-          icon="refresh"
-          label={s.restart}
-          onPress={game.restart}
-          disabled={game.turns === 0 && game.status === "playing"}
-        />
+        <IconButton icon="refresh" label={s.restart} onPress={game.restart} disabled={game.turns === 0 && game.status === 'playing'} />
         <IconButton
           icon="bulb-outline"
           label={s.hint}
           onPress={onHint}
-          disabled={game.status !== "playing"}
+          disabled={game.status !== 'playing'}
           badge={progress.boosters.hint || PRICES.hint}
         />
       </View>
@@ -582,12 +470,8 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
 
       {/* Win celebration: drawn over everything, touches pass through; a tap skips to the card. */}
       {celebration && <Celebration spec={celebration} />}
-      {game.status === "won" && !winOpen && reward && (
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={skipCelebration}
-          accessibilityLabel={s.next}
-        />
+      {game.status === 'won' && !winOpen && reward && (
+        <Pressable style={StyleSheet.absoluteFill} onPress={skipCelebration} accessibilityLabel={s.next} />
       )}
 
       {/* Tutorial card for a new mechanic */}
@@ -602,7 +486,7 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
           <View style={{ gap: SPACE.m }}>
             <Txt variant="title">{s.intro[def.intro].title}</Txt>
             <Txt variant="body">{s.intro[def.intro].body}</Txt>
-            {def.intro === "basics" && <Txt variant="small">{s.fairLock}</Txt>}
+            {def.intro === 'basics' && <Txt variant="small">{s.fairLock}</Txt>}
             <Button
               label={s.ok}
               onPress={() => {
@@ -616,18 +500,11 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
       </Sheet>
 
       {/* Out of turns */}
-      <Sheet visible={game.status === "out"}>
+      <Sheet visible={game.status === 'out'}>
         <View style={{ gap: SPACE.m }}>
           <Txt variant="title">{s.outOfTurns}</Txt>
           <Txt variant="body">{s.outOfTurnsBody}</Txt>
-          {adsAvailable() && (
-            <Button
-              label={s.plusThree}
-              sublabel={s.watchAd}
-              icon="play-circle"
-              onPress={onExtraTurnsAd}
-            />
-          )}
+          {adsAvailable() && <Button label={s.plusThree} sublabel={s.watchAd} icon="play-circle" onPress={onExtraTurnsAd} />}
           <Button
             label={s.plusThree}
             sublabel={s.forCoins(PRICES.extraTurns)}
@@ -635,20 +512,9 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
             onPress={onExtraTurnsCoins}
             disabled={progress.coins < PRICES.extraTurns}
           />
-          <View style={{ flexDirection: "row", gap: SPACE.s }}>
-            <Button
-              label={s.undo}
-              kind="quiet"
-              onPress={onUndo}
-              disabled={!game.canUndo}
-              style={{ flex: 1 }}
-            />
-            <Button
-              label={s.restart}
-              kind="quiet"
-              onPress={game.restart}
-              style={{ flex: 1 }}
-            />
+          <View style={{ flexDirection: 'row', gap: SPACE.s }}>
+            <Button label={s.undo} kind="quiet" onPress={onUndo} disabled={!game.canUndo} style={{ flex: 1 }} />
+            <Button label={s.restart} kind="quiet" onPress={game.restart} style={{ flex: 1 }} />
           </View>
         </View>
       </Sheet>
@@ -656,7 +522,7 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
       {/* Win */}
       <Sheet visible={winOpen} placement="bottom">
         {reward && (
-          <View style={{ gap: SPACE.m, alignItems: "center" }}>
+          <View style={{ gap: SPACE.m, alignItems: 'center' }}>
             <Txt variant="title" center>
               {reward.stars === 3 ? s.perfect : s.cleared}
             </Txt>
@@ -674,32 +540,23 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
                 {s.coinsEarned(reward.coins)}
               </Txt>
             )}
-            {isDaily && reward.streak ? (
-              <Txt variant="small">{s.streak(reward.streak)}</Txt>
-            ) : null}
-            <View
-              style={{ alignSelf: "stretch", gap: SPACE.s, marginTop: SPACE.s }}
-            >
+            {isDaily && reward.streak ? <Txt variant="small">{s.streak(reward.streak)}</Txt> : null}
+            {wonSkin && (
+              <Txt variant="heading" color={C.brassLight} center>
+                {s.newSkin(skinById(wonSkin)?.name[lang] ?? wonSkin)}
+              </Txt>
+            )}
+            <View style={{ alignSelf: 'stretch', gap: SPACE.s, marginTop: SPACE.s }}>
               {isDaily ? (
                 <>
-                  <Button
-                    label={s.share}
-                    icon="share-outline"
-                    onPress={onShare}
-                  />
+                  <Button label={s.share} icon="share-outline" onPress={onShare} />
                   <Button label={s.home} kind="secondary" onPress={onBack} />
                 </>
               ) : (
                 <>
                   <Button label={s.next} onPress={onNextLevel} />
                   {adsAvailable() && reward.coins > 0 && !reward.doubled && (
-                    <Button
-                      label={s.doubleCoins}
-                      sublabel={s.watchAd}
-                      kind="secondary"
-                      icon="play-circle"
-                      onPress={onDoubleCoins}
-                    />
+                    <Button label={s.doubleCoins} sublabel={s.watchAd} kind="secondary" icon="play-circle" onPress={onDoubleCoins} />
                   )}
                   <Button
                     label={s.replay}
@@ -726,15 +583,15 @@ export function expectedCoins(stars: number, daily: boolean): number {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.petrol },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: SPACE.l,
     minHeight: 48,
   },
-  back: { width: 44, height: 44, justifyContent: "center" },
+  back: { width: 44, height: 44, justifyContent: 'center' },
   chips: {
-    flexDirection: "row",
-    justifyContent: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
     gap: SPACE.s,
     marginTop: SPACE.s,
   },
@@ -745,10 +602,10 @@ const styles = StyleSheet.create({
     backgroundColor: C.petrolDeep,
   },
   chipPar: { backgroundColor: C.brassLight },
-  boardWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
-  combo: { position: "absolute", top: "8%", alignSelf: "center" },
+  boardWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  combo: { position: 'absolute', top: '8%', alignSelf: 'center' },
   comboText: {
-    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowColor: 'rgba(0,0,0,0.35)',
     textShadowRadius: 8,
     textShadowOffset: { width: 0, height: 2 },
   },
@@ -761,10 +618,10 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   a11y: { paddingHorizontal: SPACE.l, gap: SPACE.xs, marginBottom: SPACE.s },
-  a11yRow: { flexDirection: "row", alignItems: "center" },
+  a11yRow: { flexDirection: 'row', alignItems: 'center' },
   toolbar: {
-    flexDirection: "row",
-    justifyContent: "space-around",
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     marginHorizontal: SPACE.xl,
     paddingVertical: SPACE.s,
     borderRadius: 24,

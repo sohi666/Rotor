@@ -16,7 +16,9 @@ import { GameScreen, type GameMode } from './src/screens/GameScreen';
 import { LevelsScreen } from './src/screens/LevelsScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { ShopScreen } from './src/screens/ShopScreen';
-import { localDateKey } from './src/state/store';
+import { LockboxScreen } from './src/screens/LockboxScreen';
+import { getProgress, localDateKey, vaultsCleared } from './src/state/store';
+import { syncVaultSkins } from './src/skins';
 import { initAudio, warmUp } from './src/feedback';
 import { initAds } from './src/services/ads';
 import { initPurchases } from './src/services/purchases';
@@ -46,15 +48,11 @@ function initialStack(): Route[] {
   if (level >= 1 && level <= LEVELS.length) return [home, { name: 'game', mode: { kind: 'campaign', index: level - 1 } }];
   const daily = q.get('daily');
   if (daily) return [home, { name: 'game', mode: { kind: 'daily', date: daily } }];
+  if (q.get('screen') === 'lockbox') return [home, { name: 'lockbox' }];
   return [home];
 }
 
-type Route =
-  | { name: 'home' }
-  | { name: 'levels' }
-  | { name: 'settings' }
-  | { name: 'shop' }
-  | { name: 'game'; mode: GameMode };
+type Route = { name: 'home' } | { name: 'levels' } | { name: 'settings' } | { name: 'shop' } | { name: 'lockbox' } | { name: 'game'; mode: GameMode };
 
 export default function App() {
   const [fontsLoaded] = useFonts({ Unbounded_500Medium, Unbounded_700Bold, Figtree_500Medium, Figtree_600SemiBold, Figtree_700Bold });
@@ -64,6 +62,15 @@ export default function App() {
   const push = useCallback((r: Route) => setStack((s) => [...s, r]), []);
   const replace = useCallback((r: Route) => setStack((s) => [...s.slice(0, -1), r]), []);
   const pop = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);
+  // Styles for vaults cleared before the Lockbox existed (or on another build): granted once, shown on Home.
+  const [newSkins, setNewSkins] = useState<string[]>(() =>
+    syncVaultSkins(
+      vaultsCleared(
+        getProgress(),
+        LEVELS.map((l) => l.id),
+      ),
+    ),
+  );
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -108,8 +115,12 @@ export default function App() {
             onLevels={() => push({ name: 'levels' })}
             onShop={() => push({ name: 'shop' })}
             onSettings={() => push({ name: 'settings' })}
+            onLockbox={() => push({ name: 'lockbox' })}
+            newSkins={newSkins}
+            onSeenNewSkins={() => setNewSkins([])}
           />
         )}
+        {route.name === 'lockbox' && <LockboxScreen onBack={pop} onShop={() => push({ name: 'shop' })} />}
         {route.name === 'levels' && (
           <LevelsScreen levels={LEVELS} onBack={pop} onOpen={(index) => push({ name: 'game', mode: { kind: 'campaign', index } })} />
         )}
