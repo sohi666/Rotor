@@ -24,4 +24,4 @@ jobs:
         run: |
           h="$(printf '%s' "$POD" | md5sum | cut -c1-3)"
           shard="${h:0:1}_${h:1:1}_${h:2:1}"
-          curl -fsSL "https://cdn.cocoapods.org/all_pods_versions_${shard}.txt" | grep "^${POD}/" | tr '/' '\n' | tail -n 40
+          curl -fsSL "https://cdn.cocoapods.org/all_pods_versions_${shard}.txt" | grep "^${POD}/" | tr '/' '\n' | tail -n +2 | sort -V | tail -n 40
