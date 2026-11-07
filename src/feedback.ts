@@ -69,24 +69,59 @@ export function warmUp(): void {
 }
 
 const canBuzz = Platform.OS === 'ios' || Platform.OS === 'android';
+const isAndroid = Platform.OS === 'android';
+const androidApi = isAndroid ? Number(Platform.Version) : 0;
+const on = () => canBuzz && getProgress().settings.haptics;
+const quiet = (p: Promise<void>) => p.catch(() => {});
+
+/**
+ * Android: expo-haptics' selection/impact calls drive the vibration motor directly
+ * (a 50 ms pulse), which budget motors turn into a buzz. The system haptic constants
+ * (performHapticFeedback) are short ticks tuned per device by the manufacturer and follow
+ * the user's system vibration-intensity setting. Confirm/Reject need Android 11 (API 30).
+ */
+const A = Haptics.AndroidHaptics;
+function androidHaptic(type: Haptics.AndroidHaptics, minApi = 0, fallback?: () => Promise<void>): void {
+  if (androidApi >= minApi) quiet(Haptics.performAndroidHapticsAsync(type));
+  else if (fallback) quiet(fallback());
+}
+
+/** Fast spins cross several notches per frame; one tick per 45 ms is plenty and keeps motors from blurring into a buzz. */
+const NOTCH_MIN_GAP_MS = 45;
+let lastNotchAt = 0;
 
 export const buzz = {
   notch(): void {
-    if (canBuzz && getProgress().settings.haptics) Haptics.selectionAsync().catch(() => {});
+    if (!on()) return;
+    const now = Date.now();
+    if (now - lastNotchAt < NOTCH_MIN_GAP_MS) return;
+    lastNotchAt = now;
+    if (isAndroid) androidHaptic(A.Clock_Tick);
+    else quiet(Haptics.selectionAsync());
   },
   unlock(spokes: number): void {
-    if (!canBuzz || !getProgress().settings.haptics) return;
+    if (!on()) return;
+    if (isAndroid) {
+      androidHaptic(spokes >= 2 ? A.Long_Press : A.Confirm, spokes >= 2 ? 0 : 30, () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+      return;
+    }
     const style = spokes >= 3 ? Haptics.ImpactFeedbackStyle.Heavy : spokes === 2 ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light;
-    Haptics.impactAsync(style).catch(() => {});
+    quiet(Haptics.impactAsync(style));
   },
   win(): void {
-    if (canBuzz && getProgress().settings.haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    if (!on()) return;
+    if (isAndroid) androidHaptic(A.Confirm, 30, () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
+    else quiet(Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
   },
   deny(): void {
-    if (canBuzz && getProgress().settings.haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    if (!on()) return;
+    if (isAndroid) androidHaptic(A.Reject, 30, () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+    else quiet(Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
   },
   tap(): void {
-    if (canBuzz && getProgress().settings.haptics) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (!on()) return;
+    if (isAndroid) androidHaptic(A.Virtual_Key);
+    else quiet(Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
   },
 };
 

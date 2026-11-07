@@ -1,0 +1,91 @@
+name: OTA update
+
+# Ships JavaScript/asset-only changes to installed builds over the air (EAS Update),
+# no store review. Builds only accept an update with the same runtime version
+# (native fingerprint); this job prints both so a mismatch is obvious.
+# Anything that changes native code, app.json plugins or permissions needs a Release instead.
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: What changed (shown on expo.dev)
+        required: true
+        type: string
+      channel:
+        description: Channel the builds listen to (store builds use production)
+        type: choice
+        options: [production, preview]
+        default: production
+      platform:
+        type: choice
+        options: [all, ios, android]
+        default: all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ota-${{ inputs.channel }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  EAS_CLI_VERSION: '27.4.1'
+  NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MESSAGE: ${{ inputs.message }}
+      CHANNEL: ${{ inputs.channel }}
+      PLATFORM: ${{ inputs.platform }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Typecheck, tests, level verification
+        run: |
+          npx tsc --noEmit
+          npm test
+          npm run verify:levels
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: ${{ env.EAS_CLI_VERSION }}
+          token: ${{ secrets.EXPO_TOKEN }}
+          packager: npm
+      - name: Publish update
+        run: |
+          eas update --channel "$CHANNEL" --environment production --platform "$PLATFORM" \
+            --message "$MESSAGE" --non-interactive --json >"$RUNNER_TEMP/update.json"
+          jq -r '.[] | "\(.platform): runtime \(.runtimeVersion), group \(.group)"' "$RUNNER_TEMP/update.json"
+      - name: Compare with the newest store builds
+        run: |
+          summary=""
+          for p in ios android; do
+            [[ "$PLATFORM" == "all" || "$PLATFORM" == "$p" ]] || continue
+            upd="$(jq -r --arg p "$p" '[.[] | select(.platform == $p)][0].runtimeVersion // ""' "$RUNNER_TEMP/update.json")"
+            bld="$(eas build:list --platform "$p" --status finished --limit 1 --json --non-interactive 2>/dev/null | jq -r '.[0] | "\(.runtimeVersion // "") \(.appVersion // "")(\(.appBuildVersion // ""))"' || true)"
+            bld_rt="${bld%% *}"
+            if [[ -n "$bld_rt" && "$bld_rt" == "$upd" ]]; then
+              summary+="${p}: reaches build ${bld#* }. "
+            else
+              echo "::warning::${p}: update runtime ${upd} differs from newest build runtime ${bld_rt:-unknown} (${bld#* }). Installed builds will not receive it; run a Release."
+              summary+="${p}: does NOT match the newest build (needs a Release). "
+            fi
+          done
+          bash scripts/notify.sh "Rotor update published (${CHANNEL})" \
+            "${MESSAGE}. ${summary}Close and reopen the app twice: the first launch downloads it, the next one runs it." \
+            default package "$RUN_URL"
+      - name: Notify failure
+        if: failure()
+        run: bash scripts/notify.sh "Rotor OTA update FAILED" "Open the run log." urgent rotating_light "$RUN_URL"

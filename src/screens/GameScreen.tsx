@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Platform, Pressable, Share, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeOut, ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeOut } from 'react-native-reanimated';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { Board } from '../game/Board';
@@ -9,7 +9,7 @@ import { useGame } from '../game/useGame';
 import type { LevelDef } from '../engine/types';
 import { colorOf, cellAt, WILD, EMPTY, BOLT } from '../engine';
 import { C, F, PIN_NAMES_EN, PIN_NAMES_FR, SPACE } from '../theme';
-import { Button, Coins, IconButton, Sheet, Stars, Toast, Txt } from '../ui/kit';
+import { Button, Coins, IconButton, Sheet, Stars, Toast, Txt, bannerEnter } from '../ui/kit';
 import { buzz, notchFeedback, play } from '../feedback';
 import {
   coinsFor,
@@ -256,7 +256,7 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
           onTurnStart={game.clearHint}
         />
         {combo && (
-          <Animated.View key={combo.id} entering={ZoomIn.springify().damping(12)} exiting={FadeOut.duration(200)} style={styles.combo} pointerEvents="none">
+          <Animated.View key={combo.id} entering={bannerEnter} exiting={FadeOut.duration(200)} style={styles.combo} pointerEvents="none">
             <Txt variant="title" color={C.brassLight} style={styles.comboText}>
               {s.combo(combo.n)}
             </Txt>

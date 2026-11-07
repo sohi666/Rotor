@@ -35,6 +35,8 @@ import type { Game, UnlockEvent } from './useGame';
 
 const MAX_RINGS = 5;
 const SNAP_MS = 120;
+/** Fraction of a notch the ring must travel past the last tick before the next one (0.5 = no hysteresis). */
+const NOTCH_CATCH = 0.62;
 
 interface Props {
   game: Game;
@@ -167,10 +169,16 @@ export function Board({ game, size, symbols, hubValue, onNotch, onDeny, onTurnSt
         const ring = grp[i];
         angles[ring].value = b[ring] * g.step + accum.value * grp[i + 1];
       }
-      const n = Math.round(accum.value / g.step);
-      if (n !== lastNotch.value) {
-        lastNotch.value = n;
-        scheduleOnRN(jsNotch, n);
+      // Detent with hysteresis: a notch ticks only once the ring is NOTCH_CATCH past the
+      // last ticked notch, so a finger resting on the halfway line can't buzz back and forth.
+      const pos = accum.value / g.step;
+      const last = lastNotch.value;
+      if (pos > last + NOTCH_CATCH || pos < last - NOTCH_CATCH) {
+        const n = Math.round(pos);
+        if (n !== last) {
+          lastNotch.value = n;
+          scheduleOnRN(jsNotch, n);
+        }
       }
     },
     onFinalize: () => {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 import { C, F, PIN_COLORS, PIN_RIMS, SPACE, T } from '../theme';
 import { buzz, play } from '../feedback';
 
@@ -164,6 +164,16 @@ export function Stars({ value, size = 22, gap = 8 }: { value: number; size?: num
   );
 }
 
+/**
+ * Calm entrance for cards and banners: fade in while rising a few pixels, ease-out,
+ * no springs or overshoot (players found the old zoom-from-zero bounce hard on the eyes).
+ * Built-in presets, so they run the same on iOS, Android and web and are skipped when
+ * the OS asks for reduced motion.
+ */
+const settle = Easing.out(Easing.cubic);
+export const cardEnter = FadeInDown.duration(280).easing(settle).withInitialValues({ transform: [{ translateY: 14 }] });
+export const bannerEnter = FadeInDown.duration(220).easing(settle).withInitialValues({ transform: [{ translateY: 8 }] });
+
 export function Sheet({
   visible,
   onClose,
@@ -176,9 +186,9 @@ export function Sheet({
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       {visible && (
-        <Animated.View entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} style={styles.scrim}>
+        <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(140)} style={styles.scrim}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="close" />
-          <Animated.View entering={ZoomIn.springify().damping(16)} style={styles.sheet}>
+          <Animated.View entering={cardEnter} style={styles.sheet}>
             {children}
           </Animated.View>
         </Animated.View>
