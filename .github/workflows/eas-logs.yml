@@ -56,6 +56,8 @@ jobs:
             echo "================ log file $i ($(wc -l < log$i.txt) lines) ================"
             # EAS logs are JSON lines; print phase + message.
             jq -r 'select(.msg != null) | "\(.phase // "-") | \(.msg)"' "log$i.txt" 2>/dev/null > "plain$i.txt" || cp "log$i.txt" "plain$i.txt"
+            echo "first log time: $(head -1 "log$i.txt" | jq -r .time 2>/dev/null)  last log time: $(tail -1 "log$i.txt" | jq -r .time 2>/dev/null)"
+            jq -r 'select(.marker != null or (.msg // "" | test("Start phase|End phase"))) | "\(.time) \(.phase // "-") \(.msg // .marker)"' "log$i.txt" 2>/dev/null | grep -E "Start phase" | head -30 || true
             echo "---- error-looking lines ----"
             grep -n -iE "error|failed|fatal|exception|❌|denied|invalid|conflict|could not|pod |cocoapods|depend|requires|timeout|timed out" "plain$i.txt" | grep -v -iE "0 error|warning: " | head -120 || true
             echo "---- last 120 lines ----"
