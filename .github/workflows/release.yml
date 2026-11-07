@@ -365,16 +365,8 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
-      - name: Keep only the NDK React Native uses
-        run: |
-          ndk="$(grep -oE '^ndkVersion *= *"[^"]+"' node_modules/react-native/gradle/libs.versions.toml | cut -d'"' -f2)"
-          sdk="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          echo "React Native wants NDK ${ndk:-?}; installed: $(ls "$sdk/ndk" 2>/dev/null | tr '\n' ' ')"
-          if [[ -n "$ndk" ]]; then
-            for d in "$sdk"/ndk/*; do [[ -e "$d" && "$(basename "$d")" != "$ndk" ]] && sudo rm -rf "$d"; done
-          fi
-          sudo rm -rf "$sdk/ndk-bundle" || true
-          df -h /
+      # Leave the preinstalled NDKs alone: eas build --local checks that $ANDROID_NDK_HOME
+      # exists, and Gradle downloads the NDK React Native pins by itself.
       - uses: expo/expo-github-action@v8
         with:
           eas-version: ${{ env.EAS_CLI_VERSION }}
