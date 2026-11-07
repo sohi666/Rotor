@@ -29,6 +29,10 @@ on:
         description: No build - re-submit the newest processed iOS build for review (after a rejection, App Privacy, screenshots...)
         type: boolean
         default: false
+      ios_build_id:
+        description: Optional - reuse this finished EAS iOS build ID instead of building again (saves a free-plan build)
+        type: string
+        default: ''
   push:
     # Tag pushes use the repository variables RELEASE_PLATFORM (all),
     # RELEASE_ANDROID_TRACK (production), RELEASE_ANDROID_STATUS (completed)
@@ -71,6 +75,7 @@ jobs:
       submit_for_review: ${{ steps.cfg.outputs.submit_for_review }}
       review_only: ${{ steps.cfg.outputs.review_only }}
       version: ${{ steps.cfg.outputs.version }}
+      ios_build_id: ${{ steps.cfg.outputs.ios_build_id }}
     steps:
       - uses: actions/checkout@v6
 
@@ -83,6 +88,7 @@ jobs:
           IN_STATUS: ${{ inputs.android_release_status }}
           IN_REVIEW: ${{ inputs.submit_for_review }}
           IN_REVIEW_ONLY: ${{ inputs.ios_review_only }}
+          IN_IOS_BUILD_ID: ${{ inputs.ios_build_id }}
           TAG_PLATFORM: ${{ vars.RELEASE_PLATFORM || 'all' }}
           TAG_TRACK: ${{ vars.RELEASE_ANDROID_TRACK || 'production' }}
           TAG_STATUS: ${{ vars.RELEASE_ANDROID_STATUS || 'completed' }}
@@ -93,6 +99,11 @@ jobs:
           HAS_ASC: ${{ secrets.ASC_KEY_ID != '' && secrets.ASC_ISSUER_ID != '' && secrets.ASC_KEY_P8 != '' && secrets.ASC_APP_ID != '' }}
         run: |
           review_only=false
+          ios_build_id="$(echo "${IN_IOS_BUILD_ID:-}" | tr -d '[:space:]')"
+          if [[ -n "$ios_build_id" && ! "$ios_build_id" =~ ^[0-9a-f-]{36}$ ]]; then
+            echo "::error::ios_build_id '$ios_build_id' is not an EAS build ID (UUID)."
+            exit 1
+          fi
           if [[ "$EVENT" == "workflow_dispatch" ]]; then
             platform="$IN_PLATFORM" track="$IN_TRACK" status="$IN_STATUS" review="$IN_REVIEW"
             if [[ "$IN_REVIEW_ONLY" == "true" ]]; then
@@ -134,6 +145,7 @@ jobs:
             echo "submit_for_review=$review"
             echo "review_only=$review_only"
             echo "version=$version"
+            echo "ios_build_id=$ios_build_id"
           } >>"$GITHUB_OUTPUT"
           echo "Release $version: platform=$platform android=$track/$status (profile $profile) ios_review=$review review_only=$review_only"
 
@@ -183,7 +195,7 @@ jobs:
     # iOS builds on EAS cloud macOS workers (Xcode needs macOS).
     name: iOS build (EAS cloud)
     needs: [prepare, gate]
-    if: needs.prepare.outputs.review_only != 'true' && needs.prepare.outputs.ios == 'true'
+    if: needs.prepare.outputs.review_only != 'true' && needs.prepare.outputs.ios == 'true' && needs.prepare.outputs.ios_build_id == ''
     runs-on: ubuntu-latest
     timeout-minutes: 180 # free-tier EAS queues can be slow; the runner just waits
     outputs:
@@ -296,7 +308,7 @@ jobs:
     needs: [prepare, gate]
     if: needs.prepare.outputs.review_only != 'true' && needs.prepare.outputs.android == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
     outputs:
       version: ${{ steps.meta.outputs.version }}
       build_number: ${{ steps.meta.outputs.build_number }}
@@ -307,6 +319,31 @@ jobs:
       - uses: actions/checkout@v6
       - name: Free disk space for the Android build
         run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost "$AGENT_TOOLSDIRECTORY/CodeQL" || true
+      # Private-repo runners are small (2 cores, ~7 GB RAM). Gradle + Kotlin + parallel
+      # C++ compiles + Metro ran it out of memory and killed the runner, so: big swap,
+      # fewer parallel Gradle workers, and a larger, bounded Gradle heap.
+      - name: Add swap and cap Gradle memory
+        run: |
+          echo "cores: $(nproc)"; free -m; df -h / /mnt 2>/dev/null || true
+          dir=/mnt
+          avail="$(df -BG --output=avail /mnt 2>/dev/null | tail -1 | tr -dc '0-9')"
+          [[ "${avail:-0}" -ge 14 ]] || dir=/
+          sudo swapoff -a || true
+          sudo rm -f /mnt/swapfile /swapfile || true
+          sudo fallocate -l 10G "$dir/rotor.swap"
+          sudo chmod 600 "$dir/rotor.swap"
+          sudo mkswap "$dir/rotor.swap" >/dev/null
+          sudo swapon "$dir/rotor.swap"
+          mkdir -p ~/.gradle
+          # The user-home file overrides the gradle.properties that prebuild generates.
+          {
+            echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+UseParallelGC -Dfile.encoding=UTF-8"
+            echo "org.gradle.workers.max=2"
+            echo "org.gradle.parallel=false"
+            echo "org.gradle.caching=false"
+            echo "kotlin.compiler.execution.strategy=in-process"
+          } >~/.gradle/gradle.properties
+          free -m
       - uses: actions/setup-java@v5
         with:
           distribution: zulu
@@ -329,8 +366,18 @@ jobs:
         id: eas
         run: |
           mkdir -p "$RUNNER_TEMP/aab"
+          # Memory heartbeat every 2 min, so a slow or starving build shows up in the log.
+          ( while sleep 120; do
+              echo "[runner] $(date -u +%H:%M) mem $(free -m | awk '/^Mem/{print $3"/"$2}') MB, swap $(free -m | awk '/^Swap/{print $3}') MB, load $(cut -d' ' -f1 /proc/loadavg)"
+            done ) &
+          beat=$!
+          set +e
           eas build --platform android --profile production --local --non-interactive \
             --output "$RUNNER_TEMP/aab/rotor-${VERSION}.aab" 2>&1 | tee "$RUNNER_TEMP/eas-build-android.log"
+          code="${PIPESTATUS[0]}"
+          set -e
+          kill "$beat" 2>/dev/null || true
+          [[ "$code" == "0" ]] || exit "$code"
           test -s "$RUNNER_TEMP/aab/rotor-${VERSION}.aab"
       - name: Read version code
         id: meta
@@ -359,12 +406,12 @@ jobs:
   submit-ios:
     name: iOS - TestFlight and App Review
     needs: [prepare, build]
-    if: ${{ !cancelled() && needs.prepare.outputs.ios == 'true' && (needs.build.outputs.ios_status == 'FINISHED' || needs.prepare.outputs.review_only == 'true') }}
+    if: ${{ !cancelled() && needs.prepare.outputs.ios == 'true' && (needs.build.outputs.ios_status == 'FINISHED' || needs.prepare.outputs.review_only == 'true' || needs.prepare.outputs.ios_build_id != '') }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
       REVIEW_ONLY: ${{ needs.prepare.outputs.review_only }}
-      BUILD_ID: ${{ needs.build.outputs.ios_id }}
+      BUILD_ID: ${{ needs.build.outputs.ios_id || needs.prepare.outputs.ios_build_id }}
       APP_VERSION: ${{ needs.build.outputs.ios_version || needs.prepare.outputs.version }}
       BUILD_NUMBER: ${{ needs.build.outputs.ios_build_number }}
       BUILD_PAGE: ${{ needs.build.outputs.ios_page }}
@@ -397,6 +444,22 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
           packager: npm
 
+      - name: Look up the reused iOS build
+        if: env.REVIEW_ONLY != 'true' && env.BUILD_NUMBER == ''
+        run: |
+          info="$(eas build:view "$BUILD_ID" --json)"
+          platform="$(jq -r '.platform' <<<"$info")" status="$(jq -r '.status' <<<"$info")"
+          if [[ "$platform" != "IOS" || "$status" != "FINISHED" ]]; then
+            echo "::error::Build $BUILD_ID is $platform/$status, not a finished iOS build."
+            exit 1
+          fi
+          {
+            echo "APP_VERSION=$(jq -r '.appVersion' <<<"$info")"
+            echo "BUILD_NUMBER=$(jq -r '.appBuildVersion' <<<"$info")"
+            echo "BUILD_PAGE=https://expo.dev/accounts/behtoyi/projects/rotor/builds/$BUILD_ID"
+          } >>"$GITHUB_ENV"
+          echo "Reusing iOS build $BUILD_ID: $(jq -r '"\(.appVersion) (\(.appBuildVersion))"' <<<"$info")"
+
       - name: Write App Store Connect key
         run: bash scripts/ci/write-secrets.sh ios
 
@@ -411,9 +474,10 @@ jobs:
       - name: Upload to TestFlight (eas submit)
         id: upload
         if: env.REVIEW_ONLY != 'true'
+        # No --what-to-test: EAS only accepts a TestFlight changelog on its Enterprise plan.
         run: |
-          eas submit --platform ios --id "$BUILD_ID" --profile production --non-interactive --wait \
-            --what-to-test "Rotor ${APP_VERSION} (${BUILD_NUMBER})" 2>&1 | tee "$RUNNER_TEMP/eas-submit-ios.log"
+          eas submit --platform ios --id "$BUILD_ID" --profile production --non-interactive --wait 2>&1 |
+            tee "$RUNNER_TEMP/eas-submit-ios.log"
 
       - name: Notify TestFlight upload
         if: env.REVIEW_ONLY != 'true'
