@@ -131,8 +131,10 @@ case "$stage" in
       action "first Android upload is manual" "Google Play has never received a build for com.behtoyi.rotor, so the API cannot upload yet. 1) Download the .aab (button; GitHub login). 2) Play Console -> Rotor -> Test and release -> Testing -> Internal testing -> Create new release -> upload it -> Next -> Save and publish. 3) Later releases are automatic." "$aab"
     elif has "draft app|Only releases with status draft"; then
       action "Play app is still a draft" "Google accepts only DRAFT releases until the app is published once. Re-run the release with android_track=internal and android_release_status=draft, finish the Dashboard setup tasks in Play Console, then roll the release out there." "$play"
-    elif has "caller does not have permission|403|PERMISSION_DENIED|insufficient permission"; then
-      action "Play service account permissions" "The service account cannot release this app. Play Console -> Users and permissions -> (service account) -> App permissions -> Rotor: release to testing tracks, release to production, manage store presence." "$play"
+    elif has "caller does not have permission|403|PERMISSION_DENIED|insufficient permission|cannot submit this app"; then
+      # EAS words this as "cannot submit this app. Check its key and app permissions":
+      # the key authenticated fine, the account just has no access to the app.
+      action "Play service account permissions" "The key works but the service account has no access to Rotor. Play Console -> Users and permissions -> Invite new users -> the service account e-mail (client_email in the JSON) -> App permissions -> Rotor -> allow releasing to testing tracks and production -> Invite. Meanwhile upload this .aab by hand once (Testing -> Internal testing -> Create new release)." "$play"
     elif has "version ?code|already been used"; then
       action "Android version code" "Version code ${BUILD_NUMBER:-?} is already used on Play. Run npx eas-cli@latest build:version:set -p android with a higher value and rebuild." "$play"
     elif has "Service Account|serviceAccountKeyPath|invalid_grant|private key"; then
