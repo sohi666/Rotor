@@ -40,7 +40,8 @@ jobs:
           i=0
           for url in $(jq -r '.logFiles[]? // empty' build.json); do
             i=$((i+1))
-            curl -sSL "$url" -o "log$i.txt" || continue
+            curl -sSL "$url" -o "raw$i" || continue
+            zcat -f "raw$i" > "log$i.txt" 2>/dev/null || cp "raw$i" "log$i.txt"
             echo "================ log file $i ($(wc -l < log$i.txt) lines) ================"
             # EAS logs are JSON lines; print phase + message.
             jq -r 'select(.msg != null) | "\(.phase // "-") | \(.msg)"' "log$i.txt" 2>/dev/null > "plain$i.txt" || cp "log$i.txt" "plain$i.txt"
