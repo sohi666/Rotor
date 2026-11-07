@@ -153,10 +153,37 @@ jobs:
               high warning "$RUN_URL"
           fi
 
-  build:
-    name: Test and build (EAS)
+  gate:
+    name: Quality gate
     needs: prepare
     if: needs.prepare.outputs.review_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Typecheck, tests, level verification, store metadata
+        run: |
+          npx tsc --noEmit
+          npm test
+          npm run verify:levels
+          node scripts/check-store-metadata.mjs
+      - name: Notify failure
+        if: failure()
+        run: |
+          bash scripts/notify.sh "Rotor ${{ needs.prepare.outputs.version }}: release FAILED before the build" \
+            "Typecheck, tests, level verification or store-metadata lint failed. Open the run log." urgent rotating_light "$RUN_URL"
+
+  build:
+    # iOS builds on EAS cloud macOS workers (Xcode needs macOS).
+    name: iOS build (EAS cloud)
+    needs: [prepare, gate]
+    if: needs.prepare.outputs.review_only != 'true' && needs.prepare.outputs.ios == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 180 # free-tier EAS queues can be slow; the runner just waits
     outputs:
@@ -172,7 +199,7 @@ jobs:
       android_page: ${{ steps.parse.outputs.android_page }}
       android_artifact: ${{ steps.parse.outputs.android_artifact }}
     env:
-      PLATFORM: ${{ needs.prepare.outputs.platform }}
+      PLATFORM: ios
       VERSION: ${{ needs.prepare.outputs.version }}
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
@@ -189,14 +216,6 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Quality gate
-        id: gate
-        run: |
-          npx tsc --noEmit
-          npm test
-          npm run verify:levels
-          node scripts/check-store-metadata.mjs
-
       - uses: expo/expo-github-action@v8
         with:
           eas-version: ${{ env.EAS_CLI_VERSION }}
@@ -204,13 +223,12 @@ jobs:
           packager: npm
 
       - name: Let EAS repair iOS provisioning (needs APPLE_TEAM_ID variable)
-        if: needs.prepare.outputs.ios == 'true'
         run: bash scripts/ci/write-secrets.sh ios-build
 
       - name: Notify build started
         run: |
           bash scripts/notify.sh "Rotor ${VERSION}: build started (${PLATFORM})" \
-            "EAS production build queued. Free-plan builds can wait in the queue; you will be notified at each step." low hammer "$RUN_URL"
+            "iOS: EAS cloud build queued (free-plan builds can wait). Android builds on the GitHub runner. You will be notified at each step." low hammer "$RUN_URL"
 
       - name: EAS build
         id: eas
@@ -264,12 +282,81 @@ jobs:
       - name: Notify unexpected failure
         if: failure() && steps.parse.outcome != 'failure'
         run: |
-          bash scripts/notify.sh "Rotor ${VERSION}: release FAILED before the build" \
-            "Tests, level verification, store-metadata lint or EAS setup failed. Open the run log." urgent rotating_light "$RUN_URL"
+          bash scripts/notify.sh "Rotor ${VERSION}: iOS build FAILED to start" \
+            "EAS setup or upload failed before the iOS build started. Open the run log." urgent rotating_light "$RUN_URL"
 
       - name: Remove key files
         if: always()
         run: bash scripts/ci/write-secrets.sh cleanup
+
+  build-android:
+    # Android builds on the GitHub runner with `eas build --local`: no EAS free-tier
+    # 45-minute cap or memory limit, full Gradle logs in this job.
+    name: Android build (GitHub runner)
+    needs: [prepare, gate]
+    if: needs.prepare.outputs.review_only != 'true' && needs.prepare.outputs.android == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      build_number: ${{ steps.meta.outputs.build_number }}
+      artifact_name: ${{ steps.meta.outputs.artifact_name }}
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      EAS_LOCAL_BUILD_WORKINGDIR: ${{ runner.temp }}/eas-build-android
+      EAS_LOCAL_BUILD_SKIP_CLEANUP: '1'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Free disk space for the Android build
+        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost "$AGENT_TOOLSDIRECTORY/CodeQL" || true
+      - uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: '17'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install
+        run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: ${{ env.EAS_CLI_VERSION }}
+          token: ${{ secrets.EXPO_TOKEN }}
+          packager: npm
+      - name: Notify build started
+        run: |
+          bash scripts/notify.sh "Rotor ${VERSION}: Android build started" "Building the .aab on the GitHub runner (about 20-40 min)." low hammer "$RUN_URL"
+      - name: Build .aab (eas build --local)
+        id: eas
+        run: |
+          mkdir -p "$RUNNER_TEMP/aab"
+          eas build --platform android --profile production --local --non-interactive \
+            --output "$RUNNER_TEMP/aab/rotor-${VERSION}.aab" 2>&1 | tee "$RUNNER_TEMP/eas-build-android.log"
+          test -s "$RUNNER_TEMP/aab/rotor-${VERSION}.aab"
+      - name: Read version code
+        id: meta
+        run: |
+          code="$(eas build:version:get --platform android --profile production --non-interactive --json 2>/dev/null | jq -r '.versionCode // empty' || true)"
+          [[ -n "$code" ]] || code="$(grep -oE 'versionCode (from )?[0-9]+ to [0-9]+|versionCode [0-9]+' "$RUNNER_TEMP/eas-build-android.log" | grep -oE '[0-9]+$' | tail -1)"
+          name="rotor-android-${VERSION}-${code:-unknown}"
+          mv "$RUNNER_TEMP/aab/rotor-${VERSION}.aab" "$RUNNER_TEMP/aab/${name}.aab"
+          { echo "version=$VERSION"; echo "build_number=${code:-unknown}"; echo "artifact_name=$name"; } >>"$GITHUB_OUTPUT"
+      # Kept as a private GitHub artifact (needs a GitHub login); the ntfy topic is public.
+      - name: Attach the .aab to this run
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.meta.outputs.artifact_name }}
+          path: ${{ runner.temp }}/aab/*.aab
+          retention-days: 14
+          if-no-files-found: error
+          compression-level: 0
+      - name: Explain failure
+        if: failure()
+        run: |
+          PLATFORM_LABEL="android, local" APP_VERSION="$VERSION" BUILD_PAGE="$RUN_URL" \
+            bash scripts/ci/explain-failure.sh build "$RUNNER_TEMP/eas-build-android.log" || \
+            bash scripts/notify.sh "Rotor ${VERSION}: Android build FAILED" "The Gradle build on the GitHub runner failed. Open the run log." urgent rotating_light "$RUN_URL"
 
   submit-ios:
     name: iOS - TestFlight and App Review
@@ -384,16 +471,14 @@ jobs:
 
   submit-android:
     name: Android - Google Play
-    needs: [prepare, build]
-    if: ${{ !cancelled() && needs.prepare.outputs.android == 'true' && needs.build.outputs.android_status == 'FINISHED' }}
+    needs: [prepare, build-android]
+    if: ${{ !cancelled() && needs.prepare.outputs.android == 'true' && needs.build-android.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      BUILD_ID: ${{ needs.build.outputs.android_id }}
-      APP_VERSION: ${{ needs.build.outputs.android_version }}
-      BUILD_NUMBER: ${{ needs.build.outputs.android_build_number }}
-      BUILD_PAGE: ${{ needs.build.outputs.android_page }}
-      ARTIFACT_URL: ${{ needs.build.outputs.android_artifact }}
+      APP_VERSION: ${{ needs.build-android.outputs.version }}
+      BUILD_NUMBER: ${{ needs.build-android.outputs.build_number }}
+      ARTIFACT_NAME: ${{ needs.build-android.outputs.artifact_name }}
       ANDROID_PROFILE: ${{ needs.prepare.outputs.android_profile }}
       ANDROID_TRACK: ${{ needs.prepare.outputs.android_track }}
       ANDROID_RELEASE_STATUS: ${{ needs.prepare.outputs.android_release_status }}
@@ -404,28 +489,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Download the .aab from EAS
-        run: |
-          mkdir -p "$RUNNER_TEMP/aab"
-          curl -fsSL --retry 3 -o "$RUNNER_TEMP/aab/rotor-${APP_VERSION}-${BUILD_NUMBER}.aab" "$ARTIFACT_URL"
-          ls -l "$RUNNER_TEMP/aab"
-
-      # Kept as a private GitHub artifact (needs a GitHub login) instead of
-      # sending the public EAS download URL through the public ntfy topic.
-      - name: Attach the .aab to this run
+      - name: Get the .aab built in this run
         id: aab
-        uses: actions/upload-artifact@v6
+        uses: actions/download-artifact@v6
         with:
-          name: rotor-android-${{ needs.build.outputs.android_version }}-${{ needs.build.outputs.android_build_number }}
-          path: ${{ runner.temp }}/aab/*.aab
-          retention-days: 14
-          if-no-files-found: error
-          compression-level: 0
+          name: ${{ needs.build-android.outputs.artifact_name }}
+          path: ${{ runner.temp }}/aab
 
       - name: No service account yet - manual upload
         if: env.GOOGLE_SERVICE_ACCOUNT_JSON == ''
         env:
-          AAB_URL: ${{ steps.aab.outputs.artifact-url }}
+          AAB_URL: ${{ env.RUN_URL }}
         run: |
           NTFY_ACTIONS="view, Download .aab, ${AAB_URL}; view, Play Console, ${PLAY_CONSOLE_URL}" \
           bash scripts/notify.sh "ACTION NEEDED: upload Rotor Android ${APP_VERSION} (${BUILD_NUMBER}) by hand" \
@@ -468,13 +542,13 @@ jobs:
         id: upload
         if: env.GOOGLE_SERVICE_ACCOUNT_JSON != ''
         run: |
-          eas submit --platform android --id "$BUILD_ID" --profile "$ANDROID_PROFILE" --non-interactive --wait 2>&1 |
+          eas submit --platform android --path "$(ls "$RUNNER_TEMP"/aab/*.aab | head -1)" --profile "$ANDROID_PROFILE" --non-interactive --wait 2>&1 |
             tee "$RUNNER_TEMP/eas-submit-android.log"
 
       - name: Notify Play upload
         if: env.GOOGLE_SERVICE_ACCOUNT_JSON != ''
         env:
-          AAB_URL: ${{ steps.aab.outputs.artifact-url }}
+          AAB_URL: ${{ env.RUN_URL }}
         run: |
           if [[ "$ANDROID_RELEASE_STATUS" == "draft" ]]; then
             bash scripts/notify.sh "ACTION NEEDED: roll out Rotor Android ${APP_VERSION} (${BUILD_NUMBER}) on ${ANDROID_TRACK}" \
@@ -493,7 +567,7 @@ jobs:
       - name: Explain failure
         if: failure()
         env:
-          AAB_URL: ${{ steps.aab.outputs.artifact-url }}
+          AAB_URL: ${{ env.RUN_URL }}
           LISTING: ${{ steps.listing.outcome }}
           UPLOAD: ${{ steps.upload.outcome }}
         run: |
