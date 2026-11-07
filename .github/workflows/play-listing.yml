@@ -1,0 +1,60 @@
+name: Play store listing
+
+# Uploads the Google Play listing (texts, screenshots, feature graphic, icon) from
+# fastlane/metadata/android without releasing anything. Releases also do this after the upload.
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: Track that has a release (supply attaches the upload to it)
+        type: choice
+        options: [internal, production]
+        default: internal
+      version_code:
+        description: Version code of a release on that track (e.g. 9)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  listing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      PLAY_TRACK: ${{ inputs.track }}
+      VERSION_CODE: ${{ inputs.version_code }}
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_HIDE_CHANGELOG: '1'
+      FASTLANE_OPT_OUT_USAGE: 'YES'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Write Google service account key
+        run: bash scripts/ci/write-secrets.sh android
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - name: Upload the listing
+        run: bundle exec fastlane android metadata
+      - name: Notify
+        if: always()
+        env:
+          RESULT: ${{ job.status }}
+        run: |
+          if [[ "$RESULT" == "success" ]]; then
+            bash scripts/notify.sh "Rotor Play listing updated" "Texts, screenshots, feature graphic and icon are in Play Console (French and English)." low white_check_mark "$RUN_URL"
+          else
+            bash scripts/notify.sh "Rotor Play listing upload FAILED" "Open the run log." high warning "$RUN_URL"
+          fi
+      - name: Remove key files
+        if: always()
+        run: bash scripts/ci/write-secrets.sh cleanup

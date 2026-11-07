@@ -228,8 +228,12 @@ platform :android do
       skip_upload_aab: true,
       skip_upload_changelogs: true, # release notes need a release; EAS Submit creates those
       skip_upload_metadata: false,
-      validate_only: rotor_env("SUPPLY_VALIDATE_ONLY") == "true"
+      validate_only: rotor_env("SUPPLY_VALIDATE_ONLY") == "true",
+      # supply looks up an existing release even for listing-only uploads ("Could not find
+      # release for version code ''" otherwise), so point it at the track and build just uploaded.
+      track: rotor_env("PLAY_TRACK") || "internal"
     }
+    options[:version_code] = rotor_env("VERSION_CODE").to_i if rotor_env("VERSION_CODE")
     if (path = rotor_env("GOOGLE_SERVICE_ACCOUNT_KEY_PATH"))
       options[:json_key] = path
     elsif (data = rotor_env("GOOGLE_SERVICE_ACCOUNT_JSON"))
