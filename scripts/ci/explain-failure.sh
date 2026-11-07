@@ -32,7 +32,7 @@ trap 'rm -f "$scan"' EXIT
 if [[ -f "$log" ]]; then
   tail -n 150 "$log" |
     grep -vE '^[[:space:]]*(\[[0-9:]+\]:[[:space:]]*)?[|+]' |
-    grep -iE '\[!\]|error|fail|denied|reject|cannot|can.t|can not|must |missing|required|invalid|not allowed|unable|not found|draft app|limit|quota|ROTOR_' >"$scan" || true
+    grep -iE '\[!\]|error|fail|denied|reject|cannot|can.t|can not|must |missing|required|invalid|not allowed|unable|not found|draft app|limit|quota|space left|OutOfMemory|heap space|ROTOR_' >"$scan" || true
 fi
 has() { grep -qiE -- "$1" "$scan"; }
 
@@ -53,7 +53,11 @@ case "$stage" in
       action "iOS signing credentials" "EAS has no usable iOS distribution certificate/profile for com.behtoyi.rotor. On any computer run: npx eas-cli@latest credentials -p ios -> production -> set up all credentials (Apple ID login). Then re-run the release. Setting the APPLE_TEAM_ID repo variable lets CI repair expired profiles by itself." "${BUILD_PAGE:-$run_url}"
     elif has "keystore"; then
       action "Android keystore" "EAS could not use the Android upload keystore. Run: npx eas-cli@latest credentials -p android and check the production keystore." "${BUILD_PAGE:-$run_url}"
-    elif has "free (plan|tier)|build limit|reached.*limit|limit.*reached|quota"; then
+    elif has "Disk quota exceeded|No space left on device|OutOfMemoryError|Java heap space|lost communication"; then
+      title="Rotor build FAILED${label:+ (${label})}: runner out of disk or memory"
+      msg="The build machine ran out of disk space or memory (not your code, not an EAS quota). The release workflow frees disk and adds swap; open the run log, raise those limits or drop a CPU architecture, then re-run."
+      click="$run_url" prio="urgent" tags="rotating_light"
+    elif has "free (plan|tier)|build limit|reached.*limit|limit.*reached|(build|plan|monthly|usage) quota|quota (exceeded|reached) for"; then
       action "EAS build quota" "The Expo free-plan build quota for this month is used up (15 iOS + 15 Android builds). Wait for the monthly reset or upgrade the plan on expo.dev, then re-run." "https://expo.dev/pricing"
     elif has "projectId|EAS project|eas init"; then
       action "EAS project link" "app.json has no valid extra.eas.projectId / owner. Run: npx eas-cli@latest init, commit app.json, re-run." "$run_url"

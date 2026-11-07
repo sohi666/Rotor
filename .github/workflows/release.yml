@@ -317,10 +317,21 @@ jobs:
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@v6
+      # A release build of both ABIs with native debug info needs ~25 GB of scratch space;
+      # the stock runner has ~30 GB free, which ran out ("Disk quota exceeded").
       - name: Free disk space for the Android build
-        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost "$AGENT_TOOLSDIRECTORY/CodeQL" || true
+        run: |
+          df -h /
+          sudo docker image prune -af >/dev/null 2>&1 || true
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost \
+            /usr/local/share/powershell /usr/share/swift /usr/local/share/chromium /opt/microsoft /opt/google \
+            /opt/az /usr/lib/google-cloud-sdk /usr/local/julia* /usr/share/miniconda /usr/local/aws-cli /usr/local/aws-sam-cli \
+            "$AGENT_TOOLSDIRECTORY/CodeQL" "$AGENT_TOOLSDIRECTORY/go" "$AGENT_TOOLSDIRECTORY/PyPy" \
+            "$AGENT_TOOLSDIRECTORY/Python" "$AGENT_TOOLSDIRECTORY/Ruby" \
+            "${ANDROID_HOME:-/usr/local/lib/android/sdk}/system-images" "${ANDROID_HOME:-/usr/local/lib/android/sdk}/emulator" || true
+          df -h /
       # Private-repo runners are small (2 cores, ~7 GB RAM). Gradle + Kotlin + parallel
-      # C++ compiles + Metro ran it out of memory and killed the runner, so: big swap,
+      # C++ compiles + Metro ran it out of memory and killed the runner, so: swap,
       # fewer parallel Gradle workers, and a larger, bounded Gradle heap.
       - name: Add swap and cap Gradle memory
         run: |
@@ -330,7 +341,7 @@ jobs:
           [[ "${avail:-0}" -ge 14 ]] || dir=/
           sudo swapoff -a || true
           sudo rm -f /mnt/swapfile /swapfile || true
-          sudo fallocate -l 10G "$dir/rotor.swap"
+          sudo fallocate -l 6G "$dir/rotor.swap" # peak use was ~1.3 GB
           sudo chmod 600 "$dir/rotor.swap"
           sudo mkswap "$dir/rotor.swap" >/dev/null
           sudo swapon "$dir/rotor.swap"
@@ -354,6 +365,16 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
+      - name: Keep only the NDK React Native uses
+        run: |
+          ndk="$(grep -oE '^ndkVersion *= *"[^"]+"' node_modules/react-native/gradle/libs.versions.toml | cut -d'"' -f2)"
+          sdk="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "React Native wants NDK ${ndk:-?}; installed: $(ls "$sdk/ndk" 2>/dev/null | tr '\n' ' ')"
+          if [[ -n "$ndk" ]]; then
+            for d in "$sdk"/ndk/*; do [[ -e "$d" && "$(basename "$d")" != "$ndk" ]] && sudo rm -rf "$d"; done
+          fi
+          sudo rm -rf "$sdk/ndk-bundle" || true
+          df -h /
       - uses: expo/expo-github-action@v8
         with:
           eas-version: ${{ env.EAS_CLI_VERSION }}
@@ -368,7 +389,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/aab"
           # Memory heartbeat every 2 min, so a slow or starving build shows up in the log.
           ( while sleep 120; do
-              echo "[runner] $(date -u +%H:%M) mem $(free -m | awk '/^Mem/{print $3"/"$2}') MB, swap $(free -m | awk '/^Swap/{print $3}') MB, load $(cut -d' ' -f1 /proc/loadavg)"
+              echo "[runner] $(date -u +%H:%M) mem $(free -m | awk '/^Mem/{print $3"/"$2}') MB, swap $(free -m | awk '/^Swap/{print $3}') MB, disk free $(df -BG --output=avail / | tail -1 | tr -d ' '), load $(cut -d' ' -f1 /proc/loadavg)"
             done ) &
           beat=$!
           set +e
@@ -399,6 +420,7 @@ jobs:
       - name: Explain failure
         if: failure()
         run: |
+          df -h / || true
           PLATFORM_LABEL="android, local" APP_VERSION="$VERSION" BUILD_PAGE="$RUN_URL" \
             bash scripts/ci/explain-failure.sh build "$RUNNER_TEMP/eas-build-android.log" || \
             bash scripts/notify.sh "Rotor ${VERSION}: Android build FAILED" "The Gradle build on the GitHub runner failed. Open the run log." urgent rotating_light "$RUN_URL"
