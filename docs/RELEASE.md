@@ -131,6 +131,9 @@ A tag push uses these variables (defaults in brackets): `RELEASE_PLATFORM` [all]
 - `submit_for_review` (iOS)
 - `ios_review_only`: no build; re-submits the newest processed build. Use it after a rejection or after fixing App Privacy or screenshots.
 - `ios_build_id` (optional): reuse a finished EAS iOS build (the ID at the end of its expo.dev build page) instead of building again. Use it when the build passed but the upload step failed.
+- `android_promote`: no Android build; promotes the newest internal-testing release (the build you tested) to production and sends it to Google review. The usual way to release Android: test on internal, then promote.
+
+The Play store listing (`fastlane/metadata/android`: texts, screenshots, feature graphic, icon) is uploaded with every Android release. Set the repository variable `PLAY_SYNC_LISTING=false` to stop that. A listing failure sends its own ACTION NEEDED and never blocks the build upload.
 
 Build numbers increase by themselves (remote, `autoIncrement`). Every production build uses one EAS build credit, failed ones included.
 
