@@ -400,6 +400,8 @@ jobs:
           name="rotor-android-${VERSION}-${code:-unknown}"
           mv "$RUNNER_TEMP/aab/rotor-${VERSION}.aab" "$RUNNER_TEMP/aab/${name}.aab"
           { echo "version=$VERSION"; echo "build_number=${code:-unknown}"; echo "artifact_name=$name"; } >>"$GITHUB_OUTPUT"
+          runtime="$(npx expo-updates runtimeversion:resolve --platform android 2>/dev/null | tail -1 | jq -r '.runtimeVersion // empty' || true)"
+          echo "Android ${VERSION} (${code:-?}) runtime version: ${runtime:-unknown}" | tee -a "$GITHUB_STEP_SUMMARY"
       # Kept as a private GitHub artifact (needs a GitHub login); the ntfy topic is public.
       - name: Attach the .aab to this run
         uses: actions/upload-artifact@v6

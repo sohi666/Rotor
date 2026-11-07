@@ -74,13 +74,18 @@ jobs:
           for p in ios android; do
             [[ "$PLATFORM" == "all" || "$PLATFORM" == "$p" ]] || continue
             upd="$(jq -r --arg p "$p" '[.[] | select(.platform == $p)][0].runtimeVersion // ""' "$RUNNER_TEMP/update.json")"
-            bld="$(eas build:list --platform "$p" --status finished --limit 1 --json --non-interactive 2>/dev/null | jq -r '.[0] | "\(.runtimeVersion // "") \(.appVersion // "")(\(.appBuildVersion // ""))"' || true)"
-            bld_rt="${bld%% *}"
-            if [[ -n "$bld_rt" && "$bld_rt" == "$upd" ]]; then
-              summary+="${p}: reaches build ${bld#* }. "
+            info="$(eas build:list --platform "$p" --status finished --limit 1 --json --non-interactive 2>/dev/null || echo '[]')"
+            bld_rt="$(jq -r '.[0].runtime.version // .[0].runtimeVersion // ""' <<<"$info")"
+            bld_name="$(jq -r '.[0] | if . == null then "" else "\(.appVersion) (\(.appBuildVersion))" end' <<<"$info")"
+            if [[ -z "$bld_rt" ]]; then
+              # Android builds run on the GitHub runner (eas build --local), which EAS does not record.
+              echo "${p}: no EAS build record to compare (runtime of this update: ${upd}). Release runs print their runtime in the job summary."
+              summary+="${p}: published (runtime ${upd:0:7}). "
+            elif [[ "$bld_rt" == "$upd" ]]; then
+              summary+="${p}: reaches build ${bld_name}. "
             else
-              echo "::warning::${p}: update runtime ${upd} differs from newest build runtime ${bld_rt:-unknown} (${bld#* }). Installed builds will not receive it; run a Release."
-              summary+="${p}: does NOT match the newest build (needs a Release). "
+              echo "::warning::${p}: update runtime ${upd} differs from build ${bld_name} runtime ${bld_rt}. That build will not receive it; run a Release."
+              summary+="${p}: does NOT match build ${bld_name} (needs a Release). "
             fi
           done
           bash scripts/notify.sh "Rotor update published (${CHANNEL})" \
