@@ -3,6 +3,7 @@ import { Linking, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import { C, F, SPACE } from '../theme';
 import { Button, Toast, Txt } from '../ui/kit';
 import { setSetting, useProgress } from '../state/store';
@@ -109,7 +110,7 @@ export function SettingsScreen({ onBack, onShop }: { onBack: () => void; onShop:
           </Pressable>
         ))}
         <Txt variant="tiny" style={{ marginTop: SPACE.l }}>
-          Rotor {Constants.expoConfig?.version ?? ''}
+          Rotor {Constants.expoConfig?.version ?? ''} · {Updates.isEmbeddedLaunch || !Updates.updateId ? 'build' : `update ${Updates.updateId.slice(0, 8)}`}
         </Txt>
       </ScrollView>
       <Toast text={toast} />
