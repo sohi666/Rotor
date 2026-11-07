@@ -22,6 +22,10 @@ import { track } from './analytics';
 const FIRST_INTERSTITIAL_LEVEL = 36;
 const LEVELS_BETWEEN = 3;
 const MIN_GAP_MS = 120_000;
+/** If an ad hasn't opened this long after show(), it never will. */
+const AD_OPEN_TIMEOUT_MS = 4_000;
+/** Hard cap on how long the game ever waits for an ad SDK event. */
+const AD_MAX_MS = 120_000;
 
 let ready = false;
 let rewarded: RewardedAd | null = null;
@@ -103,25 +107,41 @@ export function showRewarded(placement: string): Promise<boolean> {
     return Promise.resolve(true);
   }
   const ad = rewarded;
+  rewardedLoaded = false;
   return new Promise((resolve) => {
     let earned = false;
+    let opened = false;
     let settled = false;
-    const done = (granted: boolean) => {
+    let openTimer: ReturnType<typeof setTimeout> | undefined;
+    let capTimer: ReturnType<typeof setTimeout> | undefined;
+    const done = (granted: boolean, why: string) => {
       if (settled) return;
       settled = true;
+      clearTimeout(openTimer);
+      clearTimeout(capTimer);
       unsubs.forEach((u) => u());
       loadRewarded();
-      track(granted ? 'rewarded_granted' : 'rewarded_closed_early', { placement });
+      track(granted ? 'rewarded_granted' : 'rewarded_closed_early', { placement, why });
       resolve(granted);
     };
     const unsubs = [
+      ad.addAdEventListener(AdEventType.OPENED, () => {
+        opened = true;
+        clearTimeout(openTimer);
+      }),
       ad.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
         earned = true;
       }),
-      ad.addAdEventListener(AdEventType.CLOSED, () => done(earned)),
-      ad.addAdEventListener(AdEventType.ERROR, () => done(true)),
+      ad.addAdEventListener(AdEventType.CLOSED, () => done(earned, 'closed')),
+      ad.addAdEventListener(AdEventType.ERROR, () => done(true, 'error')),
     ];
-    ad.show().catch(() => done(true));
+    // An ad that hasn't appeared after a few seconds never will: grant the reward and move on.
+    openTimer = setTimeout(() => {
+      if (!opened) done(true, 'never_opened');
+    }, AD_OPEN_TIMEOUT_MS);
+    // Never let a lost SDK event hold the game.
+    capTimer = setTimeout(() => done(earned || !opened, 'timeout'), AD_MAX_MS);
+    ad.show().catch(() => done(true, 'show_failed'));
   });
 }
 
@@ -135,17 +155,39 @@ export async function maybeShowInterstitial(levelNumber: number): Promise<void> 
     return;
   }
   const ad = interstitial;
+  interstitialLoaded = false;
+  let outcome = 'closed';
   await new Promise<void>((resolve) => {
-    const unsubs = [
-      ad.addAdEventListener(AdEventType.CLOSED, () => finish()),
-      ad.addAdEventListener(AdEventType.ERROR, () => finish()),
-    ];
-    function finish() {
+    let opened = false;
+    let settled = false;
+    let openTimer: ReturnType<typeof setTimeout> | undefined;
+    let capTimer: ReturnType<typeof setTimeout> | undefined;
+    const finish = (why: string) => {
+      if (settled) return;
+      settled = true;
+      outcome = why;
+      clearTimeout(openTimer);
+      clearTimeout(capTimer);
       unsubs.forEach((u) => u());
       resolve();
-    }
-    ad.show().catch(() => finish());
+    };
+    const unsubs = [
+      ad.addAdEventListener(AdEventType.OPENED, () => {
+        opened = true;
+        clearTimeout(openTimer);
+      }),
+      ad.addAdEventListener(AdEventType.CLOSED, () => finish('closed')),
+      ad.addAdEventListener(AdEventType.ERROR, () => finish('error')),
+    ];
+    // iOS can silently refuse to present (e.g. another window is animating). Without this
+    // the "Next level" tap waited forever and the game looked frozen.
+    openTimer = setTimeout(() => {
+      if (!opened) finish('never_opened');
+    }, AD_OPEN_TIMEOUT_MS);
+    capTimer = setTimeout(() => finish('timeout'), AD_MAX_MS);
+    ad.show().catch(() => finish('show_failed'));
   });
+  if (outcome !== 'closed') track('interstitial_not_shown', { level: levelNumber, why: outcome });
   update((s) => ({ ...s, ads: { levelsSince: 0, lastShownAt: Date.now() } }));
   track('interstitial_shown', { level: levelNumber });
   loadInterstitial();

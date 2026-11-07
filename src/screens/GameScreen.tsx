@@ -170,10 +170,18 @@ export function GameScreen({ def, mode, onBack, onNext, onShop }: Props) {
     }
   };
 
+  const leaving = useRef(false);
   const onNextLevel = async () => {
+    if (leaving.current) return; // double taps
+    leaving.current = true;
     setWinOpen(false);
-    if (mode.kind === 'campaign') await maybeShowInterstitial(levelNumber);
-    onNext?.();
+    try {
+      if (mode.kind === 'campaign') await maybeShowInterstitial(levelNumber);
+    } catch {
+      // An ad problem must never keep the player on this screen.
+    } finally {
+      onNext?.();
+    }
   };
 
   const onShare = async () => {

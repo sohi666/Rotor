@@ -1,5 +1,5 @@
-import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import React, { useEffect } from 'react';
+import { BackHandler, Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { Easing, FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 import { C, F, PIN_COLORS, PIN_RIMS, SPACE, T } from '../theme';
@@ -174,6 +174,12 @@ const settle = Easing.out(Easing.cubic);
 export const cardEnter = FadeInDown.duration(280).easing(settle).withInitialValues({ transform: [{ translateY: 14 }] });
 export const bannerEnter = FadeInDown.duration(220).easing(settle).withInitialValues({ transform: [{ translateY: 8 }] });
 
+/**
+ * Centered card over a dimmed screen. Rendered in-screen rather than as a native <Modal>:
+ * on iOS (New Architecture) a modal window that is still closing when its screen unmounts,
+ * or when an ad tries to present over it, can leave an invisible window that swallows every
+ * touch, so the game looks frozen.
+ */
 export function Sheet({
   visible,
   onClose,
@@ -183,17 +189,24 @@ export function Sheet({
   onClose?: () => void;
   children: React.ReactNode;
 }) {
+  // Android back closes a dismissible sheet instead of leaving the screen.
+  useEffect(() => {
+    if (!visible || !onClose) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, onClose]);
+
+  if (!visible) return null;
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      {visible && (
-        <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(140)} style={styles.scrim}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="close" />
-          <Animated.View entering={cardEnter} style={styles.sheet}>
-            {children}
-          </Animated.View>
-        </Animated.View>
-      )}
-    </Modal>
+    <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(140)} style={styles.overlay} accessibilityViewIsModal>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessible={false} />
+      <Animated.View entering={cardEnter} style={styles.sheet}>
+        {children}
+      </Animated.View>
+    </Animated.View>
   );
 }
 
@@ -267,7 +280,19 @@ const styles = StyleSheet.create({
   },
   coinInner: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: C.brassDeep },
   coinText: { fontFamily: F.displayMedium, fontSize: 14, color: C.ivory },
-  scrim: { flex: 1, backgroundColor: C.scrim, alignItems: 'center', justifyContent: 'center', padding: SPACE.xl },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 20,
+    elevation: 20,
+    backgroundColor: C.scrim,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACE.xl,
+  },
   sheet: {
     width: '100%',
     maxWidth: 420,

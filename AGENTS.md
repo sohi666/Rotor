@@ -37,6 +37,8 @@ Run lint and typecheck before declaring any task done.
 
 - Ads: rewarded videos are opt-in and grant the reward if the ad fails; interstitials only after "Next level", from level 36, max once per 3 levels and 2 minutes, never after Remove Ads.
 - Levels 1-35 have no turn limit. No lives/energy. No paid random items (keeps age rating and loot-box rules simple).
+- Never await an ad SDK without a timeout: every show() wait has an open timeout and a hard cap (`src/services/ads.ts`). A presentation iOS silently refuses once froze "Next level".
+- In-game cards use the in-screen `Sheet` overlay, not React Native `<Modal>`: a native modal still closing when its screen unmounts (or under an ad) can leave an invisible window that eats all touches on iOS.
 
 ## Building with EAS
 
