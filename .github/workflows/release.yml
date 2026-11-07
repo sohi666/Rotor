@@ -341,7 +341,7 @@ jobs:
           [[ "${avail:-0}" -ge 14 ]] || dir=/
           sudo swapoff -a || true
           sudo rm -f /mnt/swapfile /swapfile || true
-          sudo fallocate -l 6G "$dir/rotor.swap" # peak use was ~1.3 GB
+          sudo fallocate -l 10G "$dir/rotor.swap" # peak use was ~5.2 GB (Kotlin + C++ + Metro)
           sudo chmod 600 "$dir/rotor.swap"
           sudo mkswap "$dir/rotor.swap" >/dev/null
           sudo swapon "$dir/rotor.swap"
