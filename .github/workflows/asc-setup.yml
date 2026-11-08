@@ -52,16 +52,16 @@ jobs:
         with:
           ruby-version: '3.3'
           bundler-cache: true
-      - name: Upload metadata, screenshots and age rating (fastlane ios metadata)
-        id: meta
-        run: bundle exec fastlane ios metadata 2>&1 | tee "$RUNNER_TEMP/fastlane-ios.log"
       - name: Price, availability and App Review contact (API)
         id: api
-        if: always()
         env:
           REVIEW_PHONE: ${{ inputs.review_phone }}
           REVIEW_EMAIL: ${{ inputs.review_email }}
         run: node scripts/asc-setup.mjs 2>&1 | tee "$RUNNER_TEMP/asc-setup.log"
+      - name: Upload metadata, screenshots and age rating (fastlane ios metadata)
+        id: meta
+        if: always()
+        run: bundle exec fastlane ios metadata 2>&1 | tee "$RUNNER_TEMP/fastlane-ios.log"
       - name: Notify
         if: always()
         env:

@@ -123,8 +123,8 @@ async function availability() {
 }
 
 async function reviewContact() {
+  // Created before fastlane uploads the review notes: Apple won't create the record without a contact name.
   const phone = env('REVIEW_PHONE');
-  if (!phone) return log('review contact: REVIEW_PHONE not given, skipped');
   const versions = await asc(`/v1/apps/${APP}/appStoreVersions?filter[platform]=IOS&limit=20`);
   const editable = versions.data.find((v) =>
     ['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED'].includes(v.attributes.appStoreState ?? v.attributes.appVersionState),
@@ -133,9 +133,9 @@ async function reviewContact() {
   const attributes = {
     contactFirstName: env('REVIEW_FIRST_NAME') ?? 'Sohrab',
     contactLastName: env('REVIEW_LAST_NAME') ?? 'Behtoyi',
-    contactPhone: phone,
     contactEmail: env('REVIEW_EMAIL') ?? 'support@cibinc.ca',
     demoAccountRequired: false,
+    ...(phone ? { contactPhone: phone } : {}),
   };
   const current = await asc(`/v1/appStoreVersions/${editable.id}/appStoreReviewDetail`).catch(() => null);
   if (current?.data) {
@@ -155,7 +155,7 @@ async function reviewContact() {
       },
     });
   }
-  log(`review contact: ${attributes.contactFirstName} ${attributes.contactLastName}, ${attributes.contactEmail} (version ${editable.attributes.versionString})`);
+  log(`review contact: ${attributes.contactFirstName} ${attributes.contactLastName}, ${attributes.contactEmail}, phone ${phone ? 'set' : 'NOT set yet (required before submitting)'} (version ${editable.attributes.versionString})`);
 }
 
 /** Print the live age-rating declaration with each attribute's JSON type (Apple changes this schema). */
