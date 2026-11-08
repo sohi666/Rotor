@@ -699,6 +699,9 @@ jobs:
       GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
       APP_VERSION: ${{ needs.prepare.outputs.version }}
       ANDROID_TRACK: production
+      # draft = create the production release as a draft (required until the Play app is
+      # published once); you then press "Send for review" in Play Console -> Publishing overview.
+      PROMOTE_STATUS: ${{ needs.prepare.outputs.android_release_status }}
       FASTLANE_SKIP_UPDATE_CHECK: '1'
       FASTLANE_HIDE_CHANGELOG: '1'
       FASTLANE_OPT_OUT_USAGE: 'YES'
@@ -715,9 +718,15 @@ jobs:
         run: bundle exec fastlane android promote 2>&1 | tee "$RUNNER_TEMP/fastlane-promote.log"
       - name: Notify
         run: |
-          bash scripts/notify.sh "Rotor Android ${APP_VERSION} sent to Google review" \
-            "The internal-testing build was promoted to production. Review takes hours to a few days; it goes live automatically after approval unless Managed publishing is on. Google emails any rejection." \
-            default inbox_tray "$PLAY_CONSOLE_URL"
+          if [[ "$PROMOTE_STATUS" == "draft" ]]; then
+            bash scripts/notify.sh "ACTION NEEDED: send Rotor Android ${APP_VERSION} for review" \
+              "The production release was created as a draft (Play requires that for the first release). Play Console -> Publishing overview -> Send changes for review." \
+              high point_right "$PLAY_CONSOLE_URL"
+          else
+            bash scripts/notify.sh "Rotor Android ${APP_VERSION} sent to Google review" \
+              "The internal-testing build was promoted to production. Review takes hours to a few days; it goes live automatically after approval unless Managed publishing is on. Google emails any rejection." \
+              default inbox_tray "$PLAY_CONSOLE_URL"
+          fi
       - name: Explain failure
         if: failure()
         run: bash scripts/ci/explain-failure.sh android-upload "$RUNNER_TEMP/fastlane-promote.log"
