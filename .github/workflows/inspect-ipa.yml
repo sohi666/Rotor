@@ -1,0 +1,91 @@
+name: Inspect iOS build
+
+# Diagnostic: downloads an EAS iOS build (.ipa) and shows what Apple's binary scan sees:
+# linked frameworks, privacy manifests that declare tracking, Info.plist purpose strings,
+# and which libraries reference App Tracking Transparency / IDFA APIs (ITMS-90683,
+# STATE_ERROR.BINARY_INDICATES_APP_TRACKS_USERS). Changes nothing.
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: EAS iOS build ID (empty = newest finished iOS build)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: '27.4.1'
+          token: ${{ secrets.EXPO_TOKEN }}
+          packager: npm
+      - name: Download the .ipa
+        env:
+          BUILD_ID: ${{ inputs.build_id }}
+        run: |
+          if [[ -z "$BUILD_ID" ]]; then
+            BUILD_ID="$(eas build:list --platform ios --status finished --limit 1 --json --non-interactive | jq -r '.[0].id')"
+          fi
+          info="$(eas build:view "$BUILD_ID" --json)"
+          echo "Build $BUILD_ID: $(jq -r '"\(.appVersion) (\(.appBuildVersion)) runtime \(.runtimeVersion // .runtime.version // "?")"' <<<"$info")"
+          url="$(jq -r '.artifacts.applicationArchiveUrl // .artifacts.buildUrl' <<<"$info")"
+          curl -fsSL "$url" -o "$RUNNER_TEMP/app.ipa"
+          mkdir -p "$RUNNER_TEMP/ipa" && cd "$RUNNER_TEMP/ipa" && unzip -q "$RUNNER_TEMP/app.ipa"
+          ls Payload
+      - name: What the binary scan sees
+        run: |
+          set +e
+          cd "$RUNNER_TEMP/ipa/Payload"/*.app
+          app="$(basename "$PWD" .app)"
+          tool() { command -v "$1" || ls /usr/bin/$1-* /usr/lib/llvm-*/bin/$1 2>/dev/null | sort -V | tail -1; }
+          objdump="$(tool llvm-objdump)"; nm="$(tool llvm-nm)"
+          python3 - <<'EOF'
+          import plistlib, glob
+          info = plistlib.load(open("Info.plist", "rb"))
+          print("== Info.plist purpose strings ==")
+          for k, v in sorted(info.items()):
+              if k.startswith("NS") and k.endswith("UsageDescription"):
+                  print(f"  {k}: {v}")
+          print("  GADApplicationIdentifier:", info.get("GADApplicationIdentifier"))
+          print("  SKAdNetworkItems:", len(info.get("SKAdNetworkItems", [])))
+          print("== Privacy manifests ==")
+          for f in sorted(glob.glob("**/PrivacyInfo.xcprivacy", recursive=True)):
+              try:
+                  p = plistlib.load(open(f, "rb"))
+              except Exception as e:
+                  print(f"  {f}: unreadable ({e})"); continue
+              types = [t.get("NSPrivacyCollectedDataType", "?").replace("NSPrivacyCollectedDataType", "") for t in p.get("NSPrivacyCollectedDataTypes", [])]
+              print(f"  {f}: tracking={p.get('NSPrivacyTracking')} domains={p.get('NSPrivacyTrackingDomains', [])} collects={types}")
+          EOF
+          echo "== Linked frameworks ($app) =="
+          [[ -n "$objdump" ]] && "$objdump" --macho --dylibs-used "$app" | sed 1d | sed 's/ (compat.*//' || echo "llvm-objdump not found"
+          for f in Frameworks/*.framework; do
+            [[ -d "$f" ]] && echo "  embedded: $f"
+          done
+          echo "== ATT / IDFA references =="
+          for bin in "$app" Frameworks/*.framework/*; do
+            [[ -f "$bin" && ! "$bin" =~ \.(plist|nib|car|png|strings|bundle|json)$ ]] || continue
+            file -b "$bin" | grep -q Mach-O || continue
+            hits="$(strings -a "$bin" | grep -E 'ATTrackingManager|AppTrackingTransparency|requestTrackingAuthorization|trackingAuthorizationStatus|ASIdentifierManager|advertisingIdentifier|NSUserTrackingUsageDescription' | sort | uniq -c | head -20)"
+            [[ -n "$hits" ]] && { echo "-- $bin"; echo "$hits"; }
+            if [[ -n "$nm" ]]; then
+              "$nm" -m "$bin" 2>/dev/null | grep -E 'ATTrackingManager|ASIdentifierManager' | head -10
+            fi
+          done
+          echo "== Who mentions ATT (Swift/ObjC symbols near the strings) =="
+          if [[ -n "$nm" ]]; then
+            "$nm" -C "$app" 2>/dev/null | grep -iE 'tracking(manager|authorization)|attribution|ASIdentifier|idfa' | sed -E 's/^[0-9a-f]+ //' | sort -u | head -40
+          fi
