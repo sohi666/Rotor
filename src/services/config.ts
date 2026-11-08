@@ -15,7 +15,7 @@ interface Extra {
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Extra;
 
-const SITE = (extra.links?.site ?? 'https://sohi666.github.io/rotor/').replace(/\/?$/, '/');
+const SITE = (extra.links?.site ?? 'https://sohi666.github.io/rotor-info/').replace(/\/?$/, '/');
 
 export const LINKS = {
   site: SITE,

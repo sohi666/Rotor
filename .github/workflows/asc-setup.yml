@@ -1,0 +1,80 @@
+name: App Store page setup
+
+# Fills the App Store version page without a new build or a review submission:
+# description, keywords, URLs, screenshots (iPhone + iPad), age rating, categories
+# (fastlane ios metadata), then price Free, worldwide availability and the App Review
+# contact (scripts/asc-setup.mjs). App Privacy has no API: answer it in App Store Connect.
+on:
+  workflow_dispatch:
+    inputs:
+      review_phone:
+        description: App Review contact phone, e.g. +1 514 555 0100 (only Apple sees it; empty = leave as is)
+        required: false
+        type: string
+      review_email:
+        description: App Review contact email
+        required: false
+        type: string
+        default: support@cibinc.ca
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      ASC_APP_ID: ${{ secrets.ASC_APP_ID }}
+      ASC_APP_URL: https://appstoreconnect.apple.com/apps/${{ secrets.ASC_APP_ID }}
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_HIDE_CHANGELOG: '1'
+      FASTLANE_OPT_OUT_USAGE: 'YES'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Check store metadata
+        run: node scripts/check-store-metadata.mjs
+      - name: Write App Store Connect key
+        run: bash scripts/ci/write-secrets.sh ios
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - name: Upload metadata, screenshots and age rating (fastlane ios metadata)
+        id: meta
+        run: bundle exec fastlane ios metadata 2>&1 | tee "$RUNNER_TEMP/fastlane-ios.log"
+      - name: Price, availability and App Review contact (API)
+        id: api
+        if: always()
+        env:
+          REVIEW_PHONE: ${{ inputs.review_phone }}
+          REVIEW_EMAIL: ${{ inputs.review_email }}
+        run: node scripts/asc-setup.mjs 2>&1 | tee "$RUNNER_TEMP/asc-setup.log"
+      - name: Notify
+        if: always()
+        env:
+          META: ${{ steps.meta.outcome }}
+          API: ${{ steps.api.outcome }}
+        run: |
+          if [[ "$META" == "success" && "$API" == "success" ]]; then
+            bash scripts/notify.sh "Rotor App Store page filled" \
+              "Description, keywords, URLs, screenshots, age rating, price (Free) and availability are set. Left for you: App Privacy (No data collected, then Publish)." \
+              default white_check_mark "$ASC_APP_URL/distribution"
+          else
+            bash scripts/notify.sh "Rotor App Store page setup FAILED" "metadata: ${META}, price/availability/contact: ${API}. Open the run log." high warning "$RUN_URL"
+          fi
+      - name: Remove key files
+        if: always()
+        run: bash scripts/ci/write-secrets.sh cleanup

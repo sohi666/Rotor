@@ -4,7 +4,7 @@
 
 1.0 ships with ads switched off (the Google ad SDK is in the binary but never started), no in-app purchases (shop hidden), no analytics, no account, and all progress on the device. The answers below describe that build. Sections 1-6 further down are the drafts for 1.1, when AdMob and RevenueCat are switched on: update every form again before releasing 1.1.
 
-Links: privacy policy https://sohi666.github.io/rotor/privacy.html (English: https://sohi666.github.io/rotor/en/privacy.html), support and marketing https://sohi666.github.io/rotor/ (English: .../rotor/en/).
+Links: privacy policy https://sohi666.github.io/rotor-info/privacy.html (English: https://sohi666.github.io/rotor-info/en/privacy.html), support and marketing https://sohi666.github.io/rotor-info/ (English: .../rotor/en/).
 
 ### App Store Connect (one time, then the pipeline submits)
 
@@ -21,7 +21,7 @@ Links: privacy policy https://sohi666.github.io/rotor/privacy.html (English: htt
 
 | Task | Answer |
 |---|---|
-| Privacy policy | https://sohi666.github.io/rotor/en/privacy.html |
+| Privacy policy | https://sohi666.github.io/rotor-info/en/privacy.html |
 | App access | All functionality is available without special access |
 | Ads | **No, my app does not contain ads** |
 | Content rating | Category **Game**. Violence, fear, sexuality, language, controlled substances, crude humour, gambling: **No**. Users interact or share content in the app: **No** (sharing the daily result uses the system share sheet). Digital purchases: **No**. Expected result: Everyone / PEGI 3 |
@@ -30,7 +30,7 @@ Links: privacy policy https://sohi666.github.io/rotor/privacy.html (English: htt
 | Data safety | Collects or shares any required user data types: **No** → Next → Save |
 | Advertising ID | **No** (the 1.0 build removes the AD_ID permission) |
 | Government apps / Financial features / Health | No / My app doesn't provide any financial features / No health features |
-| Store settings | Category **Game → Puzzle**; contact email (required, shown publicly); website https://sohi666.github.io/rotor/ |
+| Store settings | Category **Game → Puzzle**; contact email (required, shown publicly); website https://sohi666.github.io/rotor-info/ |
 | Main store listing | Text and graphics are in `fastlane/metadata/android` (set the repository variable `PLAY_SYNC_LISTING=true` and the release uploads them) |
 | Countries / regions | Production → Countries/regions → add all (or Canada first) |
 

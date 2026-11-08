@@ -1,8 +1,8 @@
 # Rotor public site
 
 Privacy policy, terms and support pages the stores require, in French (root) and English (`en/`).
-Published at https://sohi666.github.io/rotor/ from the public repository `sohi666/sohi666.github.io`
-(this folder is copied to `rotor/` there). The app reads the base URL from `app.json > extra.links.site`.
+Published at https://sohi666.github.io/rotor-info/ from the public repository `sohi666/rotor-info`
+(this folder is copied to the repository root there). The app reads the base URL from `app.json > extra.links.site`.
 
 - `privacy.html` / `en/privacy.html`: privacy policy URL for App Store Connect and Google Play
 - `terms.html` / `en/terms.html`: terms of use

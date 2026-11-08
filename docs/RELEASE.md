@@ -104,7 +104,7 @@ The corporate (Organization) enrollment is pending. Rotor ships from the individ
     | Files (fr-CA and en-US) | URL now (TODO) | Notes |
     |---|---|---|
     | `fastlane/metadata/*/privacy_url.txt` | https://rotor.behtoyi.com/privacy | Same page the app links to (`extra.links.privacy` in `app.json`). Bilingual, French first. |
-    | `fastlane/metadata/*/support_url.txt` | https://rotor.behtoyi.com/support | Needs a contact method (e.g. rotor@behtoyi.com). |
+    | `fastlane/metadata/*/support_url.txt` | https://sohi666.github.io/rotor-info/ | Needs a contact method (e.g. support@cibinc.ca). |
     | `fastlane/metadata/*/marketing_url.txt` | https://rotor.behtoyi.com/ | Also the AdMob developer website (step 24). |
 
     If the domain changes, update these files **and** `extra.links` in `app.json` together.
