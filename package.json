@@ -53,5 +53,13 @@
     "web:export": "expo export --platform web",
     "postinstall": "node -e \"require('fs').mkdirSync('public',{recursive:true});require('fs').copyFileSync('node_modules/canvaskit-wasm/bin/full/canvaskit.wasm','public/canvaskit.wasm')\""
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "autolinking": {
+      "exclude": [
+        "expo-tracking-transparency",
+        "react-native-google-mobile-ads"
+      ]
+    }
+  }
 }

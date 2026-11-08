@@ -2,7 +2,7 @@
 
 ## Rotor 1.0: free launch (no ads, no purchases), exact answers
 
-1.0 ships with ads switched off (the Google ad SDK is in the binary but never started), no in-app purchases (shop hidden), no analytics, no account, and all progress on the device. The answers below describe that build. Sections 1-6 further down are the drafts for 1.1, when AdMob and RevenueCat are switched on: update every form again before releasing 1.1.
+1.0 ships without ads: the Google ad SDK and the tracking prompt are not linked into the app (`react-native.config.js`; App Store Connect refuses "No data collected" while an ad SDK is in the binary), no in-app purchases (shop hidden), no analytics, no account, and all progress on the device. The answers below describe that build. Sections 1-6 further down are the drafts for 1.1, when AdMob and RevenueCat are switched on: update every form again before releasing 1.1.
 
 Links: privacy policy https://sohi666.github.io/rotor-info/privacy.html (English: https://sohi666.github.io/rotor-info/en/privacy.html), support and marketing https://sohi666.github.io/rotor-info/ (English: https://sohi666.github.io/rotor-info/en/).
 
