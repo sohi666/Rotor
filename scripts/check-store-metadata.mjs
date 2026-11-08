@@ -51,13 +51,13 @@ const RATING_LEVEL_KEYS = [
   'alcoholTobaccoOrDrugUseOrReferences', 'contests', 'gamblingSimulated', 'gunsOrOtherWeapons',
   'horrorOrFearThemes', 'matureOrSuggestiveThemes', 'medicalOrTreatmentInformation',
   'profanityOrCrudeHumor', 'sexualContentGraphicAndNudity', 'sexualContentOrNudity',
-  'socialMedia', 'socialMediaAgeRestricted', 'violenceCartoonOrFantasy', 'violenceRealistic',
+  'violenceCartoonOrFantasy', 'violenceRealistic',
   'violenceRealisticProlongedGraphicOrSadistic',
 ];
 const RATING_LEVELS = ['NONE', 'INFREQUENT_OR_MILD', 'FREQUENT_OR_INTENSE', 'INFREQUENT', 'FREQUENT'];
 const RATING_BOOL_KEYS = [
   'advertising', 'ageAssurance', 'gambling', 'healthOrWellnessTopics', 'lootBox',
-  'messagingAndChat', 'parentalControls', 'unrestrictedWebAccess', 'userGeneratedContent',
+  'messagingAndChat', 'parentalControls', 'socialMedia', 'unrestrictedWebAccess', 'userGeneratedContent',
 ];
 const RATING_ENUMS = {
   ageRatingOverrideV2: ['NONE', 'NINE_PLUS', 'THIRTEEN_PLUS', 'SIXTEEN_PLUS', 'EIGHTEEN_PLUS', 'UNRATED'],

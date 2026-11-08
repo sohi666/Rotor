@@ -158,13 +158,24 @@ async function reviewContact() {
   log(`review contact: ${attributes.contactFirstName} ${attributes.contactLastName}, ${attributes.contactEmail} (version ${editable.attributes.versionString})`);
 }
 
+/** Print the live age-rating declaration with each attribute's JSON type (Apple changes this schema). */
+async function ageRatingSchema() {
+  const infos = await asc(`/v1/apps/${APP}/appInfos?limit=5`);
+  for (const info of infos.data) {
+    const decl = await asc(`/v1/appInfos/${info.id}/ageRatingDeclaration`).catch((e) => ({ error: e.message }));
+    if (decl.error) return log(`age rating (${info.attributes.state ?? info.id}): ${decl.error}`);
+    const attrs = decl.data?.attributes ?? {};
+    log(`age rating (${info.attributes.state ?? info.id}): ` + Object.entries(attrs).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', '));
+  }
+}
+
 const missing = ['ASC_KEY_ID', 'ASC_ISSUER_ID', 'ASC_KEY_P8', 'ASC_APP_ID'].filter((k) => !env(k));
 if (missing.length) {
   console.error(`Missing ${missing.join(', ')}`);
   process.exit(1);
 }
 let failed = 0;
-for (const step of [price, availability, reviewContact]) {
+for (const step of [ageRatingSchema, price, availability, reviewContact]) {
   try {
     await step();
   } catch (e) {
