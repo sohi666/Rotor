@@ -147,8 +147,14 @@ The Android job runs on GitHub's small private-repo runner (2 cores, about 7 GB 
    - "ACTION NEEDED: roll out … on internal". The API accepted a draft. Open it and publish it there.
    - Current Expo docs say the first upload now works through the API. The pipeline tries it and falls back to the manual route.
 4. Finish section 1 steps 14, 21–24 and publish the web pages.
-5. **Run workflow** with `ios_review_only=true`. The pipeline uploads metadata and age rating, attaches the build and submits for review. Then **Run workflow** with `platform=android`, `android_track=production`, `android_release_status=completed`, once Play's Dashboard lists no pending setup task.
-6. After this, `git tag vX.Y.Z` handles both stores.
+5. **Run workflow** with `ios_review_only=true`. The pipeline uploads metadata and age rating, attaches the build and submits for review. If Apple refuses, the ntfy message names the blocker (App Store page setup with mode `check-review` asks Apple without submitting).
+6. **Android, first production release** (what worked for 1.0.0 on 2026-11-08):
+   - Play Console → Dashboard → "Set up your app": all 11 tasks, plus **App content → Advertising ID** (not on the dashboard list, but required for Android 13+ targets) and **Production → Countries / regions**. Answers are in `docs/store-forms.md`.
+   - **Run workflow** with `platform=android`, `android_promote=true`, `android_release_status=draft`. While the app has never been published, Google accepts only draft releases from the API ("Only releases with status draft may be created on draft app").
+   - Play Console → **Production → Releases → Edit release**: add release notes (from `fastlane/metadata/android/*/changelogs/default.txt`), **Next → Save**. Then **Publishing overview → Submit N changes for review**.
+   - With Managed publishing off, the app goes live by itself once Google approves it.
+   From the second release on, `android_release_status=completed` works and step 7 is enough.
+7. After this, `git tag vX.Y.Z` handles both stores.
 
 What the iOS review step does (`bundle exec fastlane ios submit_review`):
 - Waits until the build has finished processing.
