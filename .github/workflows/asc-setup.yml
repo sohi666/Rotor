@@ -61,6 +61,9 @@ jobs:
       - name: Upload metadata, screenshots and age rating (fastlane ios metadata)
         id: meta
         if: always()
+        env:
+          REVIEW_PHONE: ${{ inputs.review_phone }}
+          REVIEW_EMAIL: ${{ inputs.review_email }}
         run: bundle exec fastlane ios metadata 2>&1 | tee "$RUNNER_TEMP/fastlane-ios.log"
       - name: Notify
         if: always()

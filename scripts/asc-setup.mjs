@@ -123,8 +123,9 @@ async function availability() {
 }
 
 async function reviewContact() {
-  // Created before fastlane uploads the review notes: Apple won't create the record without a contact name.
+  // Apple requires name, phone and email in every write to this record.
   const phone = env('REVIEW_PHONE');
+  if (!phone) return log('review contact: REVIEW_PHONE not given, left unchanged (required before submitting)');
   const versions = await asc(`/v1/apps/${APP}/appStoreVersions?filter[platform]=IOS&limit=20`);
   const editable = versions.data.find((v) =>
     ['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED'].includes(v.attributes.appStoreState ?? v.attributes.appVersionState),
