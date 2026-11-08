@@ -4,15 +4,15 @@
 
 1.0 ships with ads switched off (the Google ad SDK is in the binary but never started), no in-app purchases (shop hidden), no analytics, no account, and all progress on the device. The answers below describe that build. Sections 1-6 further down are the drafts for 1.1, when AdMob and RevenueCat are switched on: update every form again before releasing 1.1.
 
-Links: privacy policy https://sohi666.github.io/rotor-info/privacy.html (English: https://sohi666.github.io/rotor-info/en/privacy.html), support and marketing https://sohi666.github.io/rotor-info/ (English: .../rotor/en/).
+Links: privacy policy https://sohi666.github.io/rotor-info/privacy.html (English: https://sohi666.github.io/rotor-info/en/privacy.html), support and marketing https://sohi666.github.io/rotor-info/ (English: https://sohi666.github.io/rotor-info/en/).
 
 ### App Store Connect (one time, then the pipeline submits)
 
 | Where | Answer |
 |---|---|
 | App Privacy → Get Started | **No, we do not collect data from this app** → Save → **Publish** |
-| Pricing and Availability | Price **Free**; availability: all countries and regions (or Canada first) |
-| Version 1.0 → App Review Information | Your first and last name, phone and email (only Apple sees them); Sign-in required: **No**. The pipeline uploads the review notes. |
+| Pricing and Availability | Set by the pipeline: price **Free**, all 175 countries and regions, new regions automatically |
+| Version 1.0 → App Review Information | Set by the pipeline (`asc-setup.yml` with `review_phone`): Sohrab Behtoyi, phone, support@cibinc.ca, sign-in required **No**, review notes |
 | App Information → Content Rights | Set by the pipeline: contains third-party content (fonts under SIL OFL, instrument samples under MIT) and you have the rights |
 | Age rating, category, description, keywords, screenshots, URLs | Uploaded by the pipeline (`fastlane/`) |
 | In-App Purchases | None for 1.0 |
@@ -30,8 +30,8 @@ Links: privacy policy https://sohi666.github.io/rotor-info/privacy.html (English
 | Data safety | Collects or shares any required user data types: **No** → Next → Save |
 | Advertising ID | **No** (the 1.0 build removes the AD_ID permission) |
 | Government apps / Financial features / Health | No / My app doesn't provide any financial features / No health features |
-| Store settings | Category **Game → Puzzle**; contact email (required, shown publicly); website https://sohi666.github.io/rotor-info/ |
-| Main store listing | Text and graphics are in `fastlane/metadata/android` (set the repository variable `PLAY_SYNC_LISTING=true` and the release uploads them) |
+| Store settings | Category **Game → Puzzle**; contact email **support@cibinc.ca** (required, shown publicly); website https://sohi666.github.io/rotor-info/ |
+| Main store listing | Text and graphics are in `fastlane/metadata/android` (uploaded after every Android upload; already on Play for 1.0) |
 | Countries / regions | Production → Countries/regions → add all (or Canada first) |
 
 Then run **Release** with `android_promote` = true: the tested internal-testing build is promoted to production and sent to Google review.
