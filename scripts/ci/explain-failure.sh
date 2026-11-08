@@ -117,6 +117,8 @@ case "$stage" in
       action "build not found" "App Store Connect has no build ${ver}. Check TestFlight (Apple emails the reason when processing fails)." "$asc/testflight/ios"
     elif has "category"; then
       action "app category" "Apple refused the category in fastlane/metadata/primary_*category.txt. Pick it in App Store Connect -> App Information and re-run." "$asc/distribution"
+    elif grep -q "review blocker ERROR" "$scan"; then
+      action "App Review blockers" "Apple says: $(grep -oE 'review blocker ERROR: .*' "$scan" | cut -c23- | head -4 | paste -sd ';' -). Fix them in App Store Connect, then re-run with ios_review_only = true." "$asc/distribution"
     else
       title="iOS review submission FAILED"
       msg="fastlane could not submit ${ver} for review. Open the run log; Apple's error is near the end."

@@ -549,6 +549,9 @@ jobs:
           elif [[ "$URLS" == "failure" ]]; then
             bash scripts/ci/explain-failure.sh store-urls "$RUNNER_TEMP/store-urls.log"
           elif [[ "$REVIEW" == "failure" ]]; then
+            # fastlane hides Apple's "associated errors"; ask the API for them so the diagnosis can name the blocker.
+            node scripts/asc-setup.mjs --only=reviewReadiness >>"$RUNNER_TEMP/fastlane-ios.log" 2>&1 || true
+            grep -E 'review blocker' "$RUNNER_TEMP/fastlane-ios.log" || true
             bash scripts/ci/explain-failure.sh ios-review "$RUNNER_TEMP/fastlane-ios.log"
           else
             bash scripts/notify.sh "Rotor iOS ${APP_VERSION} release FAILED" "A setup step failed before the upload. Open the run log." urgent rotating_light "$RUN_URL"

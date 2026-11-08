@@ -7,6 +7,11 @@ name: App Store page setup
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: setup = fill the page; check-review = only ask Apple what still blocks App Review (changes nothing)
+        type: choice
+        options: [setup, check-review]
+        default: setup
       review_phone:
         description: App Review contact phone, e.g. +1 514 555 0100 (only Apple sees it; empty = leave as is)
         required: false
@@ -52,15 +57,20 @@ jobs:
         with:
           ruby-version: '3.3'
           bundler-cache: true
+      - name: What still blocks App Review (API, changes nothing)
+        id: check
+        if: inputs.mode == 'check-review'
+        run: node scripts/asc-setup.mjs --only=ageRatingSchema,reviewReadiness 2>&1 | tee "$RUNNER_TEMP/asc-check.log"
       - name: Price, availability and App Review contact (API)
         id: api
+        if: inputs.mode != 'check-review'
         env:
           REVIEW_PHONE: ${{ inputs.review_phone }}
           REVIEW_EMAIL: ${{ inputs.review_email }}
         run: node scripts/asc-setup.mjs 2>&1 | tee "$RUNNER_TEMP/asc-setup.log"
       - name: Upload metadata, screenshots and age rating (fastlane ios metadata)
         id: meta
-        if: always()
+        if: always() && inputs.mode != 'check-review'
         env:
           REVIEW_PHONE: ${{ inputs.review_phone }}
           REVIEW_EMAIL: ${{ inputs.review_email }}
@@ -70,8 +80,14 @@ jobs:
         env:
           META: ${{ steps.meta.outcome }}
           API: ${{ steps.api.outcome }}
+          CHECK: ${{ steps.check.outcome }}
         run: |
-          if [[ "$META" == "success" && "$API" == "success" ]]; then
+          if [[ "$CHECK" == "success" ]]; then
+            bash scripts/notify.sh "Rotor iOS is ready for App Review" "Apple accepts the version for review. Run Release with ios_review_only = true." default white_check_mark "$RUN_URL"
+          elif [[ "$CHECK" == "failure" ]]; then
+            blockers="$(grep -oE 'review blocker ERROR: .*' "$RUNNER_TEMP/asc-check.log" | cut -c23- | head -5 | paste -sd ';' -)"
+            bash scripts/notify.sh "ACTION NEEDED: App Review blockers" "${blockers:-Open the run log.}" high warning "$ASC_APP_URL/distribution"
+          elif [[ "$META" == "success" && "$API" == "success" ]]; then
             bash scripts/notify.sh "Rotor App Store page filled" \
               "Description, keywords, URLs, screenshots, age rating, price (Free) and availability are set. Left for you: App Privacy (No data collected, then Publish)." \
               default white_check_mark "$ASC_APP_URL/distribution"

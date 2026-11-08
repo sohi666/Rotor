@@ -44,7 +44,9 @@ async function asc(path, { method = 'GET', body } = {}) {
   const json = text ? JSON.parse(text) : {};
   if (!res.ok) {
     const e = json.errors?.[0];
-    throw new Error(`${method} ${path} -> ${res.status} ${e?.code ?? ''}: ${e?.detail ?? e?.title ?? text.slice(0, 300)}`);
+    const err = new Error(`${method} ${path} -> ${res.status} ${e?.code ?? ''}: ${e?.detail ?? e?.title ?? text.slice(0, 300)}`);
+    err.errors = json.errors ?? [];
+    throw err;
   }
   return json;
 }
@@ -128,7 +130,9 @@ async function reviewContact() {
   if (!phone) return log('review contact: REVIEW_PHONE not given, left unchanged (required before submitting)');
   const versions = await asc(`/v1/apps/${APP}/appStoreVersions?filter[platform]=IOS&limit=20`);
   const editable = versions.data.find((v) =>
-    ['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED'].includes(v.attributes.appStoreState ?? v.attributes.appVersionState),
+    ['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED'].includes(
+      v.attributes.appStoreState ?? v.attributes.appVersionState,
+    ),
   );
   if (!editable) return log('review contact: no editable version, skipped');
   const attributes = {
@@ -156,7 +160,68 @@ async function reviewContact() {
       },
     });
   }
-  log(`review contact: ${attributes.contactFirstName} ${attributes.contactLastName}, ${attributes.contactEmail}, phone ${phone ? 'set' : 'NOT set yet (required before submitting)'} (version ${editable.attributes.versionString})`);
+  log(
+    `review contact: ${attributes.contactFirstName} ${attributes.contactLastName}, ${attributes.contactEmail}, phone ${phone ? 'set' : 'NOT set yet (required before submitting)'} (version ${editable.attributes.versionString})`,
+  );
+}
+
+/**
+ * Ask Apple whether the editable version can go to App Review, and print every blocker.
+ * fastlane only shows "This resource cannot be reviewed, please check associated errors";
+ * the associated errors (missing App Privacy, age rating answers, review contact...) are in
+ * the error's meta. This adds the version to an open (unsubmitted) review submission and, if
+ * Apple accepts it, removes it again, so nothing is submitted and fastlane can run afterwards.
+ */
+async function reviewReadiness() {
+  const versions = await asc(`/v1/apps/${APP}/appStoreVersions?filter[platform]=IOS&limit=20`);
+  const editable = versions.data.find((v) =>
+    ['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED'].includes(
+      v.attributes.appStoreState ?? v.attributes.appVersionState,
+    ),
+  );
+  if (!editable) return log('review readiness: no editable version (already in review or released?)');
+  const open = await asc(`/v1/reviewSubmissions?filter[app]=${APP}&filter[platform]=IOS&filter[state]=READY_FOR_REVIEW&include=items&limit=5`);
+  let sub = open.data[0];
+  if (sub?.relationships?.items?.data?.length) {
+    return log(`review readiness: an unsubmitted App Review draft already holds ${sub.relationships.items.data.length} item(s); left alone`);
+  }
+  if (!sub) {
+    sub = (
+      await asc('/v1/reviewSubmissions', {
+        method: 'POST',
+        body: { data: { type: 'reviewSubmissions', attributes: { platform: 'IOS' }, relationships: { app: { data: { type: 'apps', id: APP } } } } },
+      })
+    ).data;
+  }
+  try {
+    const item = await asc('/v1/reviewSubmissionItems', {
+      method: 'POST',
+      body: {
+        data: {
+          type: 'reviewSubmissionItems',
+          relationships: {
+            reviewSubmission: { data: { type: 'reviewSubmissions', id: sub.id } },
+            appStoreVersion: { data: { type: 'appStoreVersions', id: editable.id } },
+          },
+        },
+      },
+    });
+    await asc(`/v1/reviewSubmissionItems/${item.data.id}`, { method: 'DELETE' }).catch((e) =>
+      log(`review readiness: could not remove the test item: ${e.message}`),
+    );
+    log(`review readiness: version ${editable.attributes.versionString} is accepted for review (nothing was submitted)`);
+  } catch (e) {
+    const lines = [];
+    for (const err of e.errors ?? []) {
+      lines.push(`${err.code}: ${err.detail ?? err.title}`);
+      for (const [where, list] of Object.entries(err.meta?.associatedErrors ?? {})) {
+        for (const a of list) lines.push(`${a.code ?? ''} ${a.detail ?? a.title ?? ''} [${where.replace(/[0-9a-f-]{36}|\d{9,}/g, '…')}]`.trim());
+      }
+    }
+    if (!lines.length) lines.push(e.message);
+    for (const l of lines) console.error(`[asc-setup] review blocker ERROR: ${l}`);
+    throw new Error(`version ${editable.attributes.versionString} cannot be submitted yet (${lines.length} problem(s) above)`);
+  }
 }
 
 /** Print the live age-rating declaration with each attribute's JSON type (Apple changes this schema). */
@@ -166,7 +231,12 @@ async function ageRatingSchema() {
     const decl = await asc(`/v1/appInfos/${info.id}/ageRatingDeclaration`).catch((e) => ({ error: e.message }));
     if (decl.error) return log(`age rating (${info.attributes.state ?? info.id}): ${decl.error}`);
     const attrs = decl.data?.attributes ?? {};
-    log(`age rating (${info.attributes.state ?? info.id}): ` + Object.entries(attrs).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', '));
+    log(
+      `age rating (${info.attributes.state ?? info.id}): ` +
+        Object.entries(attrs)
+          .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+          .join(', '),
+    );
   }
 }
 
@@ -175,8 +245,18 @@ if (missing.length) {
   console.error(`Missing ${missing.join(', ')}`);
   process.exit(1);
 }
+// --only=reviewReadiness,ageRatingSchema runs just those steps.
+const STEPS = { ageRatingSchema, price, availability, reviewContact, reviewReadiness };
+const only = process.argv
+  .find((a) => a.startsWith('--only='))
+  ?.slice(7)
+  .split(',')
+  .filter(Boolean);
+const chosen = only
+  ? only.map((n) => STEPS[n] ?? (console.error(`Unknown step ${n}`), process.exit(2)))
+  : [ageRatingSchema, price, availability, reviewContact];
 let failed = 0;
-for (const step of [ageRatingSchema, price, availability, reviewContact]) {
+for (const step of chosen) {
   try {
     await step();
   } catch (e) {
