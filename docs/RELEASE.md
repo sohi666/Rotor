@@ -95,22 +95,22 @@ The corporate (Organization) enrollment is pending. Rotor ships from the individ
     - If Play asks for a **Foreground service** or **microphone** declaration, the `expo-audio` plugin is still on its defaults. Fix `app.json` (see `docs/store-forms.md` §2) rather than declaring them.
 
     Answers are drafted in `docs/store-forms.md`.
-22. **Store listing graphics** (**Grow users → Store presence → Main store listing**): 512×512 icon, 1024×500 feature graphic, 2–8 phone screenshots per language. The text comes from `fastlane/metadata/android/*`. To have CI upload text and images on every release, set variable **`PLAY_SYNC_LISTING`** = `true` and add images under `fastlane/metadata/android/<locale>/images/` (`icon.png`, `featureGraphic.png`, `phoneScreenshots/1.png`…).
+22. **Store listing graphics** (**Grow users → Store presence → Main store listing**): 512×512 icon, 1024×500 feature graphic, 2–8 phone screenshots per language. The text comes from `fastlane/metadata/android/*`. CI uploads text and images after every Android upload (set variable **`PLAY_SYNC_LISTING`** = `false` to stop it); images live under `fastlane/metadata/android/<locale>/images/` (`icon.png`, `featureGraphic.png`, `phoneScreenshots/1.png`…).
 
-### F. Web pages (the URLs are placeholders, marked TODO)
+### F. Web pages (GitHub Pages, repo `sohi666/rotor-info`)
 
-23. The listings point at **TODO URLs** on a domain not decided yet. Publish them or change these files:
+23. The privacy policy, terms and support pages are static files in the public repo **`sohi666/rotor-info`**, served by GitHub Pages from `main` / root. French is the root, English is under `/en/`. The source of truth is `site/` in this repo: edit there, then copy into `rotor-info` and push.
 
-    | Files (fr-CA and en-US) | URL now (TODO) | Notes |
+    | Files (fr-CA and en-US) | URL | Notes |
     |---|---|---|
-    | `fastlane/metadata/*/privacy_url.txt` | https://rotor.behtoyi.com/privacy | Same page the app links to (`extra.links.privacy` in `app.json`). Bilingual, French first. |
-    | `fastlane/metadata/*/support_url.txt` | https://sohi666.github.io/rotor-info/ | Needs a contact method (e.g. support@cibinc.ca). |
-    | `fastlane/metadata/*/marketing_url.txt` | https://rotor.behtoyi.com/ | Also the AdMob developer website (step 24). |
+    | `fastlane/metadata/*/privacy_url.txt` | https://sohi666.github.io/rotor-info/privacy.html (fr), …/rotor-info/en/privacy.html (en) | Same page the app links to (`extra.links.site` in `app.json` + `siteLink()`). Also the Play privacy policy URL (App content). |
+    | `fastlane/metadata/*/support_url.txt` | https://sohi666.github.io/rotor-info/ (fr), …/rotor-info/en/ (en) | Contact: support@cibinc.ca. |
+    | `fastlane/metadata/*/marketing_url.txt` | Same as support | Also the AdMob developer website (step 24) once ads go on in 1.1. |
 
-    If the domain changes, update these files **and** `extra.links` in `app.json` together.
+    If the site moves (e.g. to a behtoyi.com domain), update these files **and** `extra.links` in `app.json` together.
 
-    The iOS review step refuses to submit while any of these does not answer (ACTION NEEDED "store URLs not live"). A privacy policy is mandatory on both stores, and Play's is entered by hand in App content. The policy must describe AdMob (advertising ID, IP-based coarse location), the analytics and RevenueCat. In Québec it must also follow Law 25: name a person in charge of personal information and explain how to contact them.
-24. **AdMob app-ads.txt.** Host `https://behtoyi.com/app-ads.txt` (root of the developer domain; also put a copy at `https://rotor.behtoyi.com/app-ads.txt`) containing your AdMob line:
+    The iOS review step refuses to submit while any of these does not answer (ACTION NEEDED "store URLs not live"). 1.0 collects nothing (no ads, no purchases, no analytics), and the policy says so. When 1.1 turns on AdMob and RevenueCat, the policy must describe them (advertising ID, IP-based coarse location, purchase records) before that build ships. In Québec it must also follow Law 25: name a person in charge of personal information and explain how to contact them.
+24. **AdMob app-ads.txt (1.1, when ads go on).** Host `app-ads.txt` at the root of the developer website's domain. A github.io project page is not a domain root, so this needs either the `sohi666.github.io` user site or a custom domain containing your AdMob line:
     `google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0`
     Then set the same site as the developer website. Play: **Grow users → Store presence → Store settings → Store listing contact details → Website**. App Store: the marketing URL above. Finally use **AdMob → Apps → app-ads.txt → Check for updates**. Until AdMob verifies it, ad serving is limited.
 
