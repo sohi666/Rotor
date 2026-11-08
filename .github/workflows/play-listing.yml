@@ -44,7 +44,7 @@ jobs:
           ruby-version: '3.3'
           bundler-cache: true
       - name: Upload the listing
-        run: bundle exec fastlane android metadata
+        run: bundle exec fastlane android metadata 2>&1 | tee "$RUNNER_TEMP/listing.log"
       - name: Notify
         if: always()
         env:
@@ -53,7 +53,7 @@ jobs:
           if [[ "$RESULT" == "success" ]]; then
             bash scripts/notify.sh "Rotor Play listing updated" "Texts, screenshots, feature graphic and icon are in Play Console (French and English)." low white_check_mark "$RUN_URL"
           else
-            bash scripts/notify.sh "Rotor Play listing upload FAILED" "Open the run log." high warning "$RUN_URL"
+            PLAY_STEP=listing bash scripts/ci/explain-failure.sh android-upload "$RUNNER_TEMP/listing.log"
           fi
       - name: Remove key files
         if: always()

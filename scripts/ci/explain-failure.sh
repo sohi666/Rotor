@@ -133,6 +133,8 @@ case "$stage" in
       action "first Android upload is manual" "Google Play has never received a build for com.behtoyi.rotor, so the API cannot upload yet. 1) Download the .aab (button; GitHub login). 2) Play Console -> Rotor -> Test and release -> Testing -> Internal testing -> Create new release -> upload it -> Next -> Save and publish. 3) Later releases are automatic." "$aab"
     elif has "draft app|Only releases with status draft"; then
       action "Play app is still a draft" "Google accepts only DRAFT releases until the app is published once. Re-run the release with android_track=internal and android_release_status=draft, finish the Dashboard setup tasks in Play Console, then roll the release out there." "$play"
+    elif [[ "${PLAY_STEP:-}" == "listing" ]] && has "caller does not have permission"; then
+      action "Play draft-app permission" "Google refused to save the store listing. While Rotor is unpublished it is a draft app: Play Console -> Users and permissions -> (service account) -> App permissions -> Rotor -> tick 'Edit and delete draft apps' (Draft apps) -> Apply -> Save changes." "$play"
     elif has "caller does not have permission|403|PERMISSION_DENIED|insufficient permission|cannot submit this app"; then
       # EAS words this as "cannot submit this app. Check its key and app permissions":
       # the key authenticated fine, the account just has no access to the app.
