@@ -1,5 +1,5 @@
 1. SCREEN RECORDING
-A screen recording made on an iPhone with the latest iOS is attached to this App Review Information. It starts by launching the app from the Home Screen and shows a typical session. Rotor has no account, no login, no user-generated content and no paid content, so there are no such flows to show.
+A screen recording made on an iPhone with the latest iOS is attached to this App Review Information (rotor-1.0-review.mp4, about 3 minutes, build 1.0.0 (5)). It starts by launching the app from the Home Screen and shows a typical session: claiming the daily key, solving the Daily Lock, solving a campaign level followed by its Safecracker bonus round, the level list, the Lockbox (cosmetic dial styles) and the next level. Rotor has no account, no login, no user-generated content and no paid content, so there are no such flows to show.
 
 2. PURPOSE AND AUDIENCE
 Rotor: Daily Lock is a single-player logic puzzle game for teens and adults. Each level is a combination lock made of concentric rings: the player turns the rings so the coloured pins line up on every spoke. It offers short, calm brain-teaser sessions that work offline, a new Daily Lock puzzle every day whose result can be shared, and 200 levels that a solver has proven solvable. Every colour also has a symbol, so colour-blind players can play.
