@@ -252,7 +252,22 @@ async function resubmit() {
   const open = await asc(`/v1/reviewSubmissions?filter[app]=${APP}&filter[platform]=IOS&filter[state]=UNRESOLVED_ISSUES&include=items&limit=5`);
   const sub = open.data[0];
   if (!sub) return log('resubmit: no review submission with unresolved issues');
-  for (const it of open.included ?? []) log(`resubmit: item ${it.id} state ${it.attributes?.state}`);
+  // A rejected item must be marked resolved (the "Edit" step in App Store Connect) before the
+  // submission can go back; otherwise Apple answers "Version is not ready to be submitted yet".
+  for (const it of (open.included ?? []).filter((i) => i.type === 'reviewSubmissionItems')) {
+    log(`resubmit: item ${it.id} state ${it.attributes?.state}`);
+    if (it.attributes?.state !== 'REJECTED') continue;
+    try {
+      await asc(`/v1/reviewSubmissionItems/${it.id}`, {
+        method: 'PATCH',
+        body: { data: { type: 'reviewSubmissionItems', id: it.id, attributes: { resolved: true } } },
+      });
+      log(`resubmit: item ${it.id} marked resolved`);
+    } catch (e) {
+      for (const l of explain(e)) console.error(`[asc-setup] review blocker ERROR: ${l}`);
+      throw new Error(`could not mark item ${it.id} resolved (details above)`);
+    }
+  }
   try {
     await asc(`/v1/reviewSubmissions/${sub.id}`, {
       method: 'PATCH',
