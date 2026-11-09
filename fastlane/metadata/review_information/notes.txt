@@ -1,7 +1,28 @@
-No account or login is required, and the game works fully offline.
+1. SCREEN RECORDING
+A screen recording made on an iPhone with the latest iOS is attached to this App Review Information. It starts by launching the app from the Home Screen and shows a typical session. Rotor has no account, no login, no user-generated content and no paid content, so there are no such flows to show.
 
-This version shows no ads and offers no in-app purchases. Coins are earned by playing and spent on hints, undos and cosmetic dial styles.
+2. PURPOSE AND AUDIENCE
+Rotor: Daily Lock is a single-player logic puzzle game for teens and adults. Each level is a combination lock made of concentric rings: the player turns the rings so the coloured pins line up on every spoke. It offers short, calm brain-teaser sessions that work offline, a new Daily Lock puzzle every day whose result can be shared, and 200 levels that a solver has proven solvable. Every colour also has a symbol, so colour-blind players can play.
 
-Bonus rounds: after the first clear of level 5 (then 15, 25...) a "Safecracker" round opens; after level 10 (every 10th level) a "Golden Rush" round opens. Both have a Skip button and can't be lost. To see them quickly, play levels 1 to 5.
+3. HOW TO USE IT
+No setup, account, credentials or sample files are needed. Launch the app, then:
+- Home > Play continues the campaign. Drag a ring to turn it; a level is solved when every spoke lines up.
+- Home > Daily Lock opens today's puzzle.
+- Coins are earned by playing and spent on hints, undos and cosmetic dial styles (Home > Lockbox). Stars fill star chests (one every 15 stars) and a 7-day key calendar gives a small daily reward. Contents are always shown before they are given.
+- Bonus rounds appear after the first clear of level 5 (then 15, 25...: "Safecracker") and level 10 (every 10th level: "Golden Rush"). They can be skipped and cannot be lost. Playing levels 1 to 10 shows both.
+- Settings: language (French/English), sound, vibration, colour symbols, privacy policy and terms.
 
-Aucun compte n'est requis et le jeu fonctionne entièrement hors ligne. Cette version n'affiche aucune publicité et ne propose aucun achat intégré.
+4. EXTERNAL SERVICES
+The game runs entirely on the device and needs no network connection. The only network use is:
+- Expo EAS Update (expo.dev): at launch the app checks for bug-fix updates to its own game code. No personal data is sent.
+- The privacy policy, terms and support pages (GitHub Pages) open in the browser when the player taps those links.
+- Sharing a Daily Lock result uses the standard iOS share sheet, only when the player taps Share.
+No account, analytics, advertising, AI or payment service is used. The RevenueCat purchase library is in the binary for a future version but is never started in 1.0: there are no in-app purchases.
+
+5. REGIONS
+The app works the same in every region, with the same features and content. The interface follows the device language: English or French.
+
+6. REGULATED INDUSTRY AND THIRD-PARTY MATERIAL
+Not a regulated industry. Licensed third-party material: the Unbounded and Figtree fonts (SIL Open Font License) and instrument sounds rendered from the FluidR3 GM sound bank by Frank Wen (MIT License, credited in Settings). All other art, sounds, levels and code are our own.
+
+Contact: support@cibinc.ca

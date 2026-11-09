@@ -10,7 +10,9 @@
  *      REVIEW_FIRST_NAME, REVIEW_LAST_NAME, REVIEW_PHONE, REVIEW_EMAIL (optional block)
  * The App Privacy questionnaire has no public API: answer it in App Store Connect.
  */
-import { createPrivateKey, sign } from 'node:crypto';
+import { createHash, createPrivateKey, sign } from 'node:crypto';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { basename } from 'node:path';
 
 const API = 'https://api.appstoreconnect.apple.com';
 const env = (k) => (process.env[k] ?? '').trim() || undefined;
@@ -63,6 +65,7 @@ async function all(path) {
 }
 
 const APP = env('ASC_APP_ID');
+const NOTES = new URL('../fastlane/metadata/review_information/notes.txt', import.meta.url).pathname;
 
 async function price() {
   const existing = await asc(`/v1/apps/${APP}/appPriceSchedule`).catch(() => null);
@@ -141,6 +144,7 @@ async function reviewContact() {
     contactEmail: env('REVIEW_EMAIL') ?? 'support@cibinc.ca',
     demoAccountRequired: false,
     ...(phone ? { contactPhone: phone } : {}),
+    ...(existsSync(NOTES) ? { notes: readFileSync(NOTES, 'utf8').trim().slice(0, 4000) } : {}),
   };
   const current = await asc(`/v1/appStoreVersions/${editable.id}/appStoreReviewDetail`).catch(() => null);
   if (current?.data) {
@@ -161,8 +165,86 @@ async function reviewContact() {
     });
   }
   log(
-    `review contact: ${attributes.contactFirstName} ${attributes.contactLastName}, ${attributes.contactEmail}, phone ${phone ? 'set' : 'NOT set yet (required before submitting)'} (version ${editable.attributes.versionString})`,
+    `review contact: ${attributes.contactFirstName} ${attributes.contactLastName}, ${attributes.contactEmail}, phone ${phone ? 'set' : 'NOT set yet (required before submitting)'}, notes ${attributes.notes ? attributes.notes.length + ' chars' : 'unchanged'} (version ${editable.attributes.versionString})`,
   );
+}
+
+/** The editable (or rejected) iOS version and its App Review detail record. */
+async function reviewDetail() {
+  const versions = await asc(`/v1/apps/${APP}/appStoreVersions?filter[platform]=IOS&limit=20`);
+  const editable = versions.data.find((v) =>
+    ['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED'].includes(
+      v.attributes.appStoreState ?? v.attributes.appVersionState,
+    ),
+  );
+  if (!editable) return null;
+  const detail = await asc(`/v1/appStoreVersions/${editable.id}/appStoreReviewDetail`).catch(() => null);
+  return detail?.data ? { version: editable, detail: detail.data } : null;
+}
+
+/**
+ * Upload REVIEW_ATTACHMENT (e.g. the screen recording App Review asked for) to the App Review
+ * information. An earlier attachment with the same file name is replaced.
+ */
+async function reviewAttachment() {
+  const file = env('REVIEW_ATTACHMENT');
+  if (!file) return log('review attachment: REVIEW_ATTACHMENT not given, skipped');
+  if (!existsSync(file)) throw new Error(`review attachment: ${file} not found`);
+  const found = await reviewDetail();
+  if (!found) throw new Error('review attachment: no editable version with App Review information (run reviewContact first)');
+  const name = basename(file);
+  const data = readFileSync(file);
+  const old = await asc(`/v1/appStoreReviewDetails/${found.detail.id}/appStoreReviewAttachments?limit=50`);
+  for (const a of old.data.filter((a) => a.attributes.fileName === name)) {
+    await asc(`/v1/appStoreReviewAttachments/${a.id}`, { method: 'DELETE' });
+    log(`review attachment: removed the earlier ${name}`);
+  }
+  const created = await asc('/v1/appStoreReviewAttachments', {
+    method: 'POST',
+    body: {
+      data: {
+        type: 'appStoreReviewAttachments',
+        attributes: { fileName: name, fileSize: statSync(file).size },
+        relationships: { appStoreReviewDetail: { data: { type: 'appStoreReviewDetails', id: found.detail.id } } },
+      },
+    },
+  });
+  for (const op of created.data.attributes.uploadOperations ?? []) {
+    const headers = Object.fromEntries((op.requestHeaders ?? []).map((h) => [h.name, h.value]));
+    const res = await fetch(op.url, { method: op.method, headers, body: data.subarray(op.offset, op.offset + op.length) });
+    if (!res.ok) throw new Error(`review attachment: upload part at ${op.offset} -> ${res.status} ${(await res.text()).slice(0, 200)}`);
+  }
+  await asc(`/v1/appStoreReviewAttachments/${created.data.id}`, {
+    method: 'PATCH',
+    body: {
+      data: {
+        type: 'appStoreReviewAttachments',
+        id: created.data.id,
+        attributes: { uploaded: true, sourceFileChecksum: createHash('md5').update(data).digest('hex') },
+      },
+    },
+  });
+  for (let i = 0; i < 30; i++) {
+    const a = await asc(`/v1/appStoreReviewAttachments/${created.data.id}`);
+    const state = a.data.attributes.assetDeliveryState?.state;
+    if (state === 'COMPLETE') return log(`review attachment: ${name} (${(data.length / 1e6).toFixed(1)} MB) uploaded`);
+    if (state === 'FAILED')
+      throw new Error(`review attachment: Apple could not process ${name}: ${JSON.stringify(a.data.attributes.assetDeliveryState.errors ?? [])}`);
+    await new Promise((r) => setTimeout(r, 5000));
+  }
+  log(`review attachment: ${name} uploaded, Apple is still processing it`);
+}
+
+/** Resubmit an App Review submission that came back with unresolved issues (after fixing them). */
+async function resubmit() {
+  const open = await asc(`/v1/reviewSubmissions?filter[app]=${APP}&filter[platform]=IOS&filter[state]=UNRESOLVED_ISSUES&limit=5`);
+  const sub = open.data[0];
+  if (!sub) return log('resubmit: no review submission with unresolved issues');
+  await asc(`/v1/reviewSubmissions/${sub.id}`, {
+    method: 'PATCH',
+    body: { data: { type: 'reviewSubmissions', id: sub.id, attributes: { submitted: true } } },
+  });
+  log(`resubmit: submission ${sub.id} sent back to App Review`);
 }
 
 /**
@@ -246,7 +328,7 @@ if (missing.length) {
   process.exit(1);
 }
 // --only=reviewReadiness,ageRatingSchema runs just those steps.
-const STEPS = { ageRatingSchema, price, availability, reviewContact, reviewReadiness };
+const STEPS = { ageRatingSchema, price, availability, reviewContact, reviewAttachment, reviewReadiness, resubmit };
 const only = process.argv
   .find((a) => a.startsWith('--only='))
   ?.slice(7)
@@ -262,6 +344,8 @@ for (const step of chosen) {
   } catch (e) {
     failed++;
     console.error(`[asc-setup] ${step.name} FAILED: ${e.message}`);
+    // With --only the steps form a sequence (e.g. notes -> video -> resubmit): never resubmit after a failed step.
+    if (only) break;
   }
 }
 process.exit(failed ? 1 : 0);

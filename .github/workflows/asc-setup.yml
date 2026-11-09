@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: setup = fill the page; check-review = only ask Apple what still blocks App Review (changes nothing)
+        description: setup = fill the page; check-review = only ask Apple what still blocks App Review (changes nothing); review-notes = send review notes + attachment only; resubmit = the same, then resubmit after an App Review reply
         type: choice
-        options: [setup, check-review]
+        options: [setup, check-review, review-notes, resubmit]
         default: setup
       review_phone:
         description: App Review contact phone, e.g. +1 514 555 0100 (only Apple sees it; empty = leave as is)
@@ -21,6 +21,11 @@ on:
         required: false
         type: string
         default: support@cibinc.ca
+      review_attachment:
+        description: resubmit mode - file in the repo to attach to the App Review information (e.g. the screen recording)
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -61,16 +66,32 @@ jobs:
         id: check
         if: inputs.mode == 'check-review'
         run: node scripts/asc-setup.mjs --only=ageRatingSchema,reviewReadiness 2>&1 | tee "$RUNNER_TEMP/asc-check.log"
+      - name: App Review notes and attachment, then resubmit (API)
+        id: resubmit
+        if: inputs.mode == 'resubmit' || inputs.mode == 'review-notes'
+        env:
+          MODE: ${{ inputs.mode }}
+          REVIEW_PHONE: ${{ inputs.review_phone }}
+          REVIEW_EMAIL: ${{ inputs.review_email }}
+          REVIEW_ATTACHMENT: ${{ inputs.review_attachment }}
+        run: |
+          if [[ -z "$REVIEW_PHONE" ]]; then
+            echo "::error::review_phone is required: Apple only accepts the notes together with name, phone and email."
+            exit 1
+          fi
+          steps=reviewContact,reviewAttachment
+          [[ "$MODE" == "resubmit" ]] && steps="$steps,resubmit"
+          node scripts/asc-setup.mjs --only=$steps 2>&1 | tee "$RUNNER_TEMP/asc-resubmit.log"
       - name: Price, availability and App Review contact (API)
         id: api
-        if: inputs.mode != 'check-review'
+        if: inputs.mode == 'setup'
         env:
           REVIEW_PHONE: ${{ inputs.review_phone }}
           REVIEW_EMAIL: ${{ inputs.review_email }}
         run: node scripts/asc-setup.mjs 2>&1 | tee "$RUNNER_TEMP/asc-setup.log"
       - name: Upload metadata, screenshots and age rating (fastlane ios metadata)
         id: meta
-        if: always() && inputs.mode != 'check-review'
+        if: always() && inputs.mode == 'setup'
         env:
           REVIEW_PHONE: ${{ inputs.review_phone }}
           REVIEW_EMAIL: ${{ inputs.review_email }}
@@ -81,8 +102,16 @@ jobs:
           META: ${{ steps.meta.outcome }}
           API: ${{ steps.api.outcome }}
           CHECK: ${{ steps.check.outcome }}
+          RESUBMIT: ${{ steps.resubmit.outcome }}
+          MODE: ${{ inputs.mode }}
         run: |
-          if [[ "$CHECK" == "success" ]]; then
+          if [[ "$RESUBMIT" == "success" && "$MODE" == "review-notes" ]]; then
+            bash scripts/notify.sh "Rotor App Review notes updated" "Notes (and attachment, if any) are in App Store Connect. Nothing was resubmitted." default memo "$ASC_APP_URL/distribution"
+          elif [[ "$RESUBMIT" == "success" ]]; then
+            bash scripts/notify.sh "Rotor iOS resubmitted to App Review" "Review notes and the attachment were sent, and the submission went back to Apple." default inbox_tray "$ASC_APP_URL/distribution"
+          elif [[ "$RESUBMIT" == "failure" ]]; then
+            bash scripts/notify.sh "ACTION NEEDED: App Review resubmission failed" "$(grep -oE 'FAILED: .*' "$RUNNER_TEMP/asc-resubmit.log" | head -2 | paste -sd ';' -)" high warning "$RUN_URL"
+          elif [[ "$CHECK" == "success" ]]; then
             bash scripts/notify.sh "Rotor iOS is ready for App Review" "Apple accepts the version for review. Run Release with ios_review_only = true." default white_check_mark "$RUN_URL"
           elif [[ "$CHECK" == "failure" ]]; then
             blockers="$(grep -oE 'review blocker ERROR: .*' "$RUNNER_TEMP/asc-check.log" | cut -c23- | head -5 | paste -sd ';' -)"
