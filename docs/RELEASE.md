@@ -227,6 +227,7 @@ Priorities: `low` (2), `default` (3), `high` (4), `urgent` (5). Anything that ne
 2. If it's a misunderstanding, **reply** there. No new build is needed and the review restarts.
 3. If it's metadata (description, screenshots, privacy URL, age rating), fix `fastlane/metadata`, commit, then **Run workflow → `ios_review_only`**.
 4. If the binary must change, fix the code, bump `expo.version` (or keep it; the build number increases), then tag a new release.
+5. **Guideline 2.1 "Information Needed"** (1.0.0 got this on 2026-11-08). Apple asks for a screen recording on a physical device (starting from the app launch) plus purpose, usage, external services, regions and licensed material. The written answers are in `fastlane/metadata/review_information/notes.txt`. Put the recording in the repo (compressed H.264 .mp4), then **App Store page setup** with mode `resubmit`, `review_phone` and `review_attachment=<path>`. It sends the notes, attaches the video and resubmits the open submission (`review-notes` mode does the same without resubmitting).
 
 Typical risks for this app:
 - **ATT:** the prompt must appear before any tracking, and the App Privacy answers must say Device ID is used for tracking (store-forms.md).
