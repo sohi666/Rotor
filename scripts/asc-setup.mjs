@@ -235,15 +235,33 @@ async function reviewAttachment() {
   log(`review attachment: ${name} uploaded, Apple is still processing it`);
 }
 
+/** Apple's error plus its "associated errors" (fastlane and plain messages hide those). */
+function explain(e) {
+  const lines = [];
+  for (const err of e.errors ?? []) {
+    lines.push(`${err.code}: ${err.detail ?? err.title}`);
+    for (const [where, list] of Object.entries(err.meta?.associatedErrors ?? {})) {
+      for (const a of list) lines.push(`${a.code ?? ''} ${a.detail ?? a.title ?? ''} [${where.replace(/[0-9a-f-]{36}|\d{9,}/g, '…')}]`.trim());
+    }
+  }
+  return lines.length ? lines : [e.message];
+}
+
 /** Resubmit an App Review submission that came back with unresolved issues (after fixing them). */
 async function resubmit() {
-  const open = await asc(`/v1/reviewSubmissions?filter[app]=${APP}&filter[platform]=IOS&filter[state]=UNRESOLVED_ISSUES&limit=5`);
+  const open = await asc(`/v1/reviewSubmissions?filter[app]=${APP}&filter[platform]=IOS&filter[state]=UNRESOLVED_ISSUES&include=items&limit=5`);
   const sub = open.data[0];
   if (!sub) return log('resubmit: no review submission with unresolved issues');
-  await asc(`/v1/reviewSubmissions/${sub.id}`, {
-    method: 'PATCH',
-    body: { data: { type: 'reviewSubmissions', id: sub.id, attributes: { submitted: true } } },
-  });
+  for (const it of open.included ?? []) log(`resubmit: item ${it.id} state ${it.attributes?.state}`);
+  try {
+    await asc(`/v1/reviewSubmissions/${sub.id}`, {
+      method: 'PATCH',
+      body: { data: { type: 'reviewSubmissions', id: sub.id, attributes: { submitted: true } } },
+    });
+  } catch (e) {
+    for (const l of explain(e)) console.error(`[asc-setup] review blocker ERROR: ${l}`);
+    throw new Error(`submission ${sub.id} was not resubmitted (details above)`);
+  }
   log(`resubmit: submission ${sub.id} sent back to App Review`);
 }
 
