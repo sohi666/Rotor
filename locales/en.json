@@ -1,6 +1,5 @@
 {
   "ios": {
-    "CFBundleDisplayName": "Rotor",
-    "NSUserTrackingUsageDescription": "Rotor uses this identifier to show more relevant ads. Videos are always optional."
+    "CFBundleDisplayName": "Rotor"
   }
 }

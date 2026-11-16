@@ -14,4 +14,13 @@ describe('app.json locales', () => {
     const stray = Object.keys(locale).filter((k) => k !== 'ios' && k !== 'android');
     expect(stray).toEqual([]);
   });
+
+  // App Review reads a localized NSUserTrackingUsageDescription as "this app uses App Tracking
+  // Transparency" and then rejects a build that never shows the prompt (Guideline 2.1, Nov 2026).
+  // Only add it back together with the ads SDK and the ATT prompt.
+  const adsLinked = (app.plugins as unknown[]).some((p) => (Array.isArray(p) ? p[0] : p) === 'react-native-google-mobile-ads');
+  it.each(Object.entries(app.locales as Record<string, string>))('%s has no tracking text while ads are off', (_lang, file) => {
+    const locale = JSON.parse(readFileSync(join(root, file), 'utf8'));
+    if (!adsLinked) expect(locale.ios?.NSUserTrackingUsageDescription).toBeUndefined();
+  });
 });
