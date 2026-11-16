@@ -26,6 +26,11 @@ on:
         required: false
         type: string
         default: ''
+      build_number:
+        description: resubmit mode - attach this iOS build (e.g. 6) to the version first; empty = keep the current build
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -37,7 +42,7 @@ defaults:
 jobs:
   setup:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     env:
       NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -74,12 +79,14 @@ jobs:
           REVIEW_PHONE: ${{ inputs.review_phone }}
           REVIEW_EMAIL: ${{ inputs.review_email }}
           REVIEW_ATTACHMENT: ${{ inputs.review_attachment }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
         run: |
           if [[ -z "$REVIEW_PHONE" ]]; then
             echo "::error::review_phone is required: Apple only accepts the notes together with name, phone and email."
             exit 1
           fi
           steps=reviewContact,reviewAttachment
+          [[ -n "$BUILD_NUMBER" ]] && steps="$steps,selectBuild"
           [[ "$MODE" == "resubmit" ]] && steps="$steps,resubmit"
           node scripts/asc-setup.mjs --only=$steps 2>&1 | tee "$RUNNER_TEMP/asc-resubmit.log"
       - name: Price, availability and App Review contact (API)

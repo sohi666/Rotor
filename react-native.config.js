@@ -12,5 +12,10 @@
 module.exports = {
   dependencies: {
     'react-native-google-mobile-ads': { platforms: { ios: null, android: null } },
+    // iOS 1.0 has no in-app purchases. RevenueCat links AdServices and reads the App Tracking
+    // Transparency status, so App Review asked for an ATT prompt (Guideline 2.1, Nov 2026).
+    // Android keeps it: Google raised nothing, and its runtime fingerprint stays unchanged.
+    // Turning purchases on for iOS (1.1): delete this entry and rebuild.
+    'react-native-purchases': { platforms: { ios: null } },
   },
 };

@@ -235,6 +235,34 @@ async function reviewAttachment() {
   log(`review attachment: ${name} uploaded, Apple is still processing it`);
 }
 
+/**
+ * Attach a build to the editable (or rejected) iOS version: BUILD_NUMBER if given, else the newest
+ * processed build of that version. Waits up to 30 minutes for Apple to finish processing.
+ */
+async function selectBuild() {
+  const found = await reviewDetail();
+  if (!found) throw new Error('select build: no editable or rejected iOS version');
+  const { version } = found;
+  const wanted = env('BUILD_NUMBER');
+  const filter = `filter[app]=${APP}&filter[preReleaseVersion.version]=${encodeURIComponent(version.attributes.versionString)}&filter[preReleaseVersion.platform]=IOS`;
+  for (let i = 0; i < 60; i++) {
+    const builds = await asc(`/v1/builds?${filter}${wanted ? `&filter[version]=${wanted}` : ''}&sort=-uploadedDate&limit=5`);
+    const build = builds.data[0];
+    const state = build?.attributes?.processingState;
+    if (build && state === 'VALID') {
+      await asc(`/v1/appStoreVersions/${version.id}/relationships/build`, {
+        method: 'PATCH',
+        body: { data: { type: 'builds', id: build.id } },
+      });
+      return log(`select build: ${version.attributes.versionString} (${build.attributes.version}) attached to the version`);
+    }
+    if (state === 'INVALID' || state === 'FAILED') throw new Error(`select build: build ${build.attributes.version} is ${state}`);
+    log(`select build: waiting for ${wanted ? `build ${wanted}` : 'the newest build'} (${build ? state : 'not uploaded yet'})`);
+    await new Promise((r) => setTimeout(r, 30000));
+  }
+  throw new Error('select build: the build did not finish processing within 30 minutes');
+}
+
 /** Apple's error plus its "associated errors" (fastlane and plain messages hide those). */
 function explain(e) {
   const lines = [];
@@ -361,7 +389,7 @@ if (missing.length) {
   process.exit(1);
 }
 // --only=reviewReadiness,ageRatingSchema runs just those steps.
-const STEPS = { ageRatingSchema, price, availability, reviewContact, reviewAttachment, reviewReadiness, resubmit };
+const STEPS = { ageRatingSchema, price, availability, reviewContact, reviewAttachment, selectBuild, reviewReadiness, resubmit };
 const only = process.argv
   .find((a) => a.startsWith('--only='))
   ?.slice(7)
