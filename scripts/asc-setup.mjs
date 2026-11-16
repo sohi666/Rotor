@@ -279,7 +279,7 @@ function explain(e) {
 async function resubmit() {
   const open = await asc(`/v1/reviewSubmissions?filter[app]=${APP}&filter[platform]=IOS&filter[state]=UNRESOLVED_ISSUES&include=items&limit=5`);
   const sub = open.data[0];
-  if (!sub) return log('resubmit: no review submission with unresolved issues');
+  if (!sub) return submitNew();
   // A rejected item must be marked resolved (the "Edit" step in App Store Connect) before the
   // submission can go back; otherwise Apple answers "Version is not ready to be submitted yet".
   for (const it of (open.included ?? []).filter((i) => i.type === 'reviewSubmissionItems')) {
@@ -306,6 +306,62 @@ async function resubmit() {
     throw new Error(`submission ${sub.id} was not resubmitted (details above)`);
   }
   log(`resubmit: submission ${sub.id} sent back to App Review`);
+}
+
+/** Submit the editable version in a fresh review submission (after cancelling one, or a first submission). */
+async function submitNew() {
+  const found = await reviewDetail();
+  if (!found) throw new Error('submit: no editable iOS version');
+  const draft = await asc(`/v1/reviewSubmissions?filter[app]=${APP}&filter[platform]=IOS&filter[state]=READY_FOR_REVIEW&include=items&limit=5`);
+  let sub = draft.data[0];
+  if (!sub) {
+    sub = (
+      await asc('/v1/reviewSubmissions', {
+        method: 'POST',
+        body: { data: { type: 'reviewSubmissions', attributes: { platform: 'IOS' }, relationships: { app: { data: { type: 'apps', id: APP } } } } },
+      })
+    ).data;
+  }
+  try {
+    if (!sub.relationships?.items?.data?.length) {
+      await asc('/v1/reviewSubmissionItems', {
+        method: 'POST',
+        body: {
+          data: {
+            type: 'reviewSubmissionItems',
+            relationships: {
+              reviewSubmission: { data: { type: 'reviewSubmissions', id: sub.id } },
+              appStoreVersion: { data: { type: 'appStoreVersions', id: found.version.id } },
+            },
+          },
+        },
+      });
+    }
+    await asc(`/v1/reviewSubmissions/${sub.id}`, {
+      method: 'PATCH',
+      body: { data: { type: 'reviewSubmissions', id: sub.id, attributes: { submitted: true } } },
+    });
+  } catch (e) {
+    for (const l of explain(e)) console.error(`[asc-setup] review blocker ERROR: ${l}`);
+    throw new Error(`version ${found.version.attributes.versionString} was not submitted (details above)`);
+  }
+  log(`submit: ${found.version.attributes.versionString} sent to App Review in a new submission`);
+}
+
+/** Pull the iOS version out of the review queue (to swap the build); waits until it is editable again. */
+async function cancelReview() {
+  const waiting = await asc(`/v1/reviewSubmissions?filter[app]=${APP}&filter[platform]=IOS&filter[state]=WAITING_FOR_REVIEW,IN_REVIEW&limit=5`);
+  const sub = waiting.data[0];
+  if (!sub) return log('cancel review: nothing waiting for review');
+  await asc(`/v1/reviewSubmissions/${sub.id}`, {
+    method: 'PATCH',
+    body: { data: { type: 'reviewSubmissions', id: sub.id, attributes: { canceled: true } } },
+  });
+  for (let i = 0; i < 40; i++) {
+    if (await reviewDetail()) return log(`cancel review: submission ${sub.id} cancelled, version editable again`);
+    await new Promise((r) => setTimeout(r, 15000));
+  }
+  throw new Error('cancel review: the version did not become editable within 10 minutes');
 }
 
 /**
@@ -389,7 +445,18 @@ if (missing.length) {
   process.exit(1);
 }
 // --only=reviewReadiness,ageRatingSchema runs just those steps.
-const STEPS = { ageRatingSchema, price, availability, reviewContact, reviewAttachment, selectBuild, reviewReadiness, resubmit };
+const STEPS = {
+  ageRatingSchema,
+  price,
+  availability,
+  reviewContact,
+  reviewAttachment,
+  selectBuild,
+  reviewReadiness,
+  resubmit,
+  cancelReview,
+  submitNew,
+};
 const only = process.argv
   .find((a) => a.startsWith('--only='))
   ?.slice(7)

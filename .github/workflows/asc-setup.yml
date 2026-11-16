@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: setup = fill the page; check-review = only ask Apple what still blocks App Review (changes nothing); review-notes = send review notes + attachment only; resubmit = the same, then resubmit after an App Review reply
+        description: setup = fill the page; check-review = only ask Apple what still blocks App Review (changes nothing); review-notes = send review notes + attachment only; resubmit = the same, then resubmit after an App Review reply; swap-build = pull the version out of the review queue, attach build_number, notes, submit again
         type: choice
-        options: [setup, check-review, review-notes, resubmit]
+        options: [setup, check-review, review-notes, resubmit, swap-build]
         default: setup
       review_phone:
         description: App Review contact phone, e.g. +1 514 555 0100 (only Apple sees it; empty = leave as is)
@@ -73,7 +73,7 @@ jobs:
         run: node scripts/asc-setup.mjs --only=ageRatingSchema,reviewReadiness 2>&1 | tee "$RUNNER_TEMP/asc-check.log"
       - name: App Review notes and attachment, then resubmit (API)
         id: resubmit
-        if: inputs.mode == 'resubmit' || inputs.mode == 'review-notes'
+        if: inputs.mode == 'resubmit' || inputs.mode == 'review-notes' || inputs.mode == 'swap-build'
         env:
           MODE: ${{ inputs.mode }}
           REVIEW_PHONE: ${{ inputs.review_phone }}
@@ -86,8 +86,9 @@ jobs:
             exit 1
           fi
           steps=reviewContact,reviewAttachment
+          [[ "$MODE" == "swap-build" ]] && steps="cancelReview,$steps"
           [[ -n "$BUILD_NUMBER" ]] && steps="$steps,selectBuild"
-          [[ "$MODE" == "resubmit" ]] && steps="$steps,resubmit"
+          [[ "$MODE" == "resubmit" || "$MODE" == "swap-build" ]] && steps="$steps,resubmit"
           node scripts/asc-setup.mjs --only=$steps 2>&1 | tee "$RUNNER_TEMP/asc-resubmit.log"
       - name: Price, availability and App Review contact (API)
         id: api
@@ -114,6 +115,8 @@ jobs:
         run: |
           if [[ "$RESUBMIT" == "success" && "$MODE" == "review-notes" ]]; then
             bash scripts/notify.sh "Rotor App Review notes updated" "Notes (and attachment, if any) are in App Store Connect. Nothing was resubmitted." default memo "$ASC_APP_URL/distribution"
+          elif [[ "$RESUBMIT" == "success" && "$MODE" == "swap-build" ]]; then
+            bash scripts/notify.sh "Rotor iOS resubmitted with build ${{ inputs.build_number }}" "The version was pulled from the queue, the new build attached and submitted again." default inbox_tray "$ASC_APP_URL/distribution"
           elif [[ "$RESUBMIT" == "success" ]]; then
             bash scripts/notify.sh "Rotor iOS resubmitted to App Review" "Review notes and the attachment were sent, and the submission went back to Apple." default inbox_tray "$ASC_APP_URL/distribution"
           elif [[ "$RESUBMIT" == "failure" ]]; then
