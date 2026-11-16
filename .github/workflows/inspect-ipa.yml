@@ -85,6 +85,10 @@ jobs:
               "$nm" -m "$bin" 2>/dev/null | grep -E 'ATTrackingManager|ASIdentifierManager' | head -10
             fi
           done
+          echo "== Any file mentioning tracking APIs (JS bundle, resources, frameworks) =="
+          grep -rlaE 'ATTrackingManager|AppTrackingTransparency|requestTrackingAuthorization|trackingAuthorizationStatus|ASIdentifierManager|advertisingIdentifier|NSUserTrackingUsageDescription|TrackingTransparency|AdServices|AAAttribution' . | while read -r f; do
+            echo "-- $f"; strings -a "$f" | grep -oE '[A-Za-z_.]*(ATTrackingManager|AppTrackingTransparency|requestTrackingAuthorization|trackingAuthorizationStatus|ASIdentifierManager|advertisingIdentifier|NSUserTrackingUsageDescription|TrackingTransparency|AdServices|AAAttribution)[A-Za-z_.:]*' | sort | uniq -c | head -15
+          done
           echo "== Who mentions ATT (Swift/ObjC symbols near the strings) =="
           if [[ -n "$nm" ]]; then
             "$nm" -C "$app" 2>/dev/null | grep -iE 'tracking(manager|authorization)|attribution|ASIdentifier|idfa' | sed -E 's/^[0-9a-f]+ //' | sort -u | head -40
